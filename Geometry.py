@@ -12,33 +12,37 @@ class Geometry:
         self.pointZCoords = pointZCoords
         self.colocationXCoords = colocationXCoords
         self.colocationZCoords = colocationZCoords
+        self.numPoints = len(self.pointXCoords)
         self.hasTrailingEdge = hasTrailingEdge
         self.generateNormals()
         self.generateReferenceElementData()
         
     def generateNormals(self):
-        numPoints = len(self.pointXCoords)
-        self.normalX = np.zeros(numPoints)
-        self.normalZ = np.zeros(numPoints)
-        for i in range(numPoints):
-    #         print(i)
+        self.normalX = np.zeros(self.numPoints)
+        self.normalZ = np.zeros(self.numPoints)
+        for i in range(self.numPoints):
             if i == 0:
                 dx = self.pointXCoords[1] - self.pointXCoords[-1]
                 dz = self.pointZCoords[1] - self.pointZCoords[-1]
-            elif i == numPoints - 1:
+            elif i == self.numPoints - 1:
                 dx = self.pointXCoords[i] - self.pointXCoords[-2]
                 dz = self.pointZCoords[i] - self.pointZCoords[-2]
             else:
                 dx = self.pointXCoords[i+1] - self.pointXCoords[i-1]
                 dz = self.pointZCoords[i+1] - self.pointZCoords[i-1]
             length = np.sqrt(dx**2 + dz**2)
-            self.normalX[i] = dz / length
-            self.normalZ[i] = -dx / length
+            if(self.hasTrailingEdge):
+                self.normalX[i] = dz / length
+                self.normalZ[i] = -dx / length
+            else:
+                self.normalX[i] = -dz / length
+                self.normalZ[i] = dx / length
             
     def generateReferenceElementData(self):
         self.referenceCoords, self.referenceWeights = np.polynomial.legendre.leggauss(NUM_REFERENCE_ELEMENT_POINTS)
         self.generateShapeFunctions()
         self.generateShapeDerivatives()
+        
         
     def generateShapeFunctions(self):
         self.shapeFunctions = np.zeros((NUM_POINTS_IN_ELEMENT, len(self.referenceCoords)))
@@ -65,12 +69,155 @@ class Geometry:
         self.connectionMatrix = connectionMatrix
         self.assemblyMatrix = assemblyMatrix
         self.generateInfluenceMatrices()
+        if(self.hasTrailingEdge):
+            self.generateVortex()
+            
+    def generateVortex(self):
+        self.numVortexPoints = len(self.pointXCoords) // 2
+        xCoordinateMin = min(self.colocationXCoords)
+        xCoordinateMax = max(self.colocationXCoords)
+        self.vortexLineLength = xCoordinateMax - xCoordinateMin
+        vortexLineDeltaX = (self.vortexLineLength / (self.numVortexPoints))
+        self.vortexLineXCoordinates = xCoordinateMin + ((0.5 * vortexLineDeltaX) + (np.arange(self.numVortexPoints) * vortexLineDeltaX))
+        self.vortexLineZCoordinates = np.zeros(self.numVortexPoints)
+        self.generateVortexVelocity()
+        self.generateModifiedKqgMatrix()
+            
+    def generateVortexVelocity(self):
+        integrated = True
+        # Initialize output arrays
+        vortexVelocityX = np.zeros(self.numPoints)  # Discrete x-velocity
+        vortexVelocityZ = np.zeros(self.numPoints)  # Discrete z-velocity
+        vortexVelocityXIntegrated = np.zeros(self.numPoints)  # Integrated x-velocity (uvtxig equivalent)
+        vortexVelocityZIntegrated = np.zeros(self.numPoints)  # Integrated z-velocity (vvtxig equivalent)
+        vortexVelocityNormal = np.zeros(self.numPoints)
+        vortexPhi = np.zeros(self.numPoints)
+        vortexPhiT = np.zeros(self.numPoints)
+        thetas = []
+        # Compute velocities for each point
+        for pointIndex in range(self.numPoints):
+            theta = np.zeros(self.numVortexPoints)
+            distanceX = self.pointXCoords[pointIndex] - self.vortexLineXCoordinates
+            distanceZ = self.pointZCoords[pointIndex] - self.vortexLineZCoordinates
+            distanceMagnitude = np.sqrt(distanceX**2 + distanceZ**2)
+            
+            # Avoid division by zero
+            distanceMagnitude[distanceMagnitude < 1e-10] = 1e-10
+            
+            # Compute theta for all vortex points
+            theta = np.arctan2(distanceZ, distanceX)
+            if(max(theta) < 0):
+                theta += 2*np.pi
+            thetas.append(theta)
+            vortexPhi[pointIndex] = ((1 / (2 * np.pi * self.numVortexPoints)) * np.sum(theta))
+            vortexPhiT[pointIndex] = (1/(4 * np.pi**2 * np.sum(distanceMagnitude**2)))
+    #         print(vortexPhi[pointIndex])
+    #         quit()
+            # Discrete velocities (non-integrated case)
+            if not integrated:
+                vortexVelocityX[pointIndex] = (-1 / (2 * np.pi * self.numVortexPoints)) * np.sum(distanceZ / (distanceMagnitude**2))
+                vortexVelocityZ[pointIndex] = (1 / (2 * np.pi * self.numVortexPoints)) * np.sum(distanceX / (distanceMagnitude**2))
+                vortexVelocityNormal[pointIndex] = (vortexVelocityX[pointIndex] * self.normalX[pointIndex]) + \
+                                                   (vortexVelocityZ[pointIndex] * self.normalZ[pointIndex])
+    
+            # Integrated velocities (always compute, used when integrated=True)
+            vortexVelocityXIntegrated[pointIndex] = (-1 / (2 * np.pi * self.vortexLineLength)) * (theta[-1] - theta[0])
+            
+            # Z-component: Default integrated case
+            if abs(self.pointZCoords[pointIndex]) < 1e-6:  # Leading or trailing edge (z ≈ 0)
+                vortexVelocityZIntegrated[pointIndex] = (1 / (2 * np.pi * self.vortexLineLength)) * np.log(
+                    abs(self.pointXCoords[pointIndex] - self.vortexLineXCoordinates[0]) / 
+                    abs(self.pointXCoords[pointIndex] - self.vortexLineXCoordinates[-1])
+                )
+            else:
+                sin_theta_start = np.sin(theta[0])
+                sin_theta_end = np.sin(theta[-1])
+                if abs(sin_theta_start) < 1e-10 or abs(sin_theta_end) < 1e-10:
+                    vortexVelocityZIntegrated[pointIndex] = 0  # Avoid log(0)
+                else:
+                    vortexVelocityZIntegrated[pointIndex] = (1 / (2 * np.pi * self.vortexLineLength)) * np.log(
+                        abs(sin_theta_end / sin_theta_start)
+                    )
+    
+            # Use integrated velocities if flag is True
+            if integrated:
+                vortexVelocityX[pointIndex] = vortexVelocityXIntegrated[pointIndex]
+                vortexVelocityZ[pointIndex] = vortexVelocityZIntegrated[pointIndex]
+                vortexVelocityNormal[pointIndex] = -((vortexVelocityX[pointIndex] * self.normalX[pointIndex]) + \
+                                                   (vortexVelocityZ[pointIndex] * self.normalZ[pointIndex]))
+    
+    #     print("index", numPoints//2 + 1)
+    #     print("vortexPhi", vortexPhi)
+        vortexPhi[self.numPoints//2 + 1] = vortexPhi[self.numPoints//2]
+        vortexPhiT[self.numPoints//2 + 1] = vortexPhiT[self.numPoints//2]
+        self.vortexPhi = vortexPhi
+        self.vortexPhiT = vortexPhiT
+        self.vortexVelocityX = vortexVelocityX
+        self.vortexVelocityZ = vortexVelocityZ
+        self.vortexVelocityNormal = vortexVelocityNormal
+#         print("vortexVelocityNormal", vortexVelocityNormal)
+
+            
+    def generateModifiedKqgMatrix(self):
+        upperPointIndex = (self.numPoints // 2)
+        lowerPointIndex = (self.numPoints // 2) + 1
+        vortexInfluenceMatrix = np.dot(self.kugMatrix, self.vortexVelocityNormal)
+        vortexInfluenceMatrix[upperPointIndex] = 0
+        vortexInfluenceMatrix[lowerPointIndex] = 0
+        
+        # Continuity condition
+        modifiedKqgMatrix = self.kqgMatrix.copy()
+        maxKqg = np.max(np.abs(np.diag(modifiedKqgMatrix)))
+        modifiedKqgMatrix[lowerPointIndex, :] = 0
+        modifiedKqgMatrix[lowerPointIndex, lowerPointIndex] = maxKqg
+        modifiedKqgMatrix[lowerPointIndex, upperPointIndex] = -maxKqg
+    
+        # Debug: Print rhs
+    
+        # Shape function derivatives at xi = 1, -1
+        shapeFunctionDerivativesOne = np.array([0.5, -2, 1.5])  # xi = 1
+        shapeFunctionDerivativesMinusOne = np.array([-1.5, 2, -0.5])  # xi = -1
+    
+        numElements = len(self.connectionMatrix)
+        # Element indices (trailing edge elements)
+        upperElementIndex = (numElements // 2) - 1  # Last element of upper surface
+        lowerElementIndex = (numElements // 2)  # First element of lower surface
+    
+        # Debug: Print element indices
+    
+        # KJ row
+        kjRow = np.zeros(self.numPoints)
+    
+        # Upper element (end at xi = 1)
+        upperElementPointIndexes = self.connectionMatrix[upperElementIndex]
+        upperElementXCoordinates = np.sum(shapeFunctionDerivativesOne * self.pointXCoords[upperElementPointIndexes])
+        upperElementZCoordinates = np.sum(shapeFunctionDerivativesOne * self.pointZCoords[upperElementPointIndexes])
+        upperElementDeltaArclength = np.sqrt(upperElementXCoordinates**2 + upperElementZCoordinates**2)
+        upperElementTangentialVelocity = shapeFunctionDerivativesOne / upperElementDeltaArclength
+        kjRow[upperElementPointIndexes] = upperElementTangentialVelocity
+    
+        # Lower element (start at xi = -1)
+        lowerElementPointIndexes = self.connectionMatrix[lowerElementIndex]
+        lowerElementXCoordinates = np.sum(shapeFunctionDerivativesMinusOne * self.pointXCoords[lowerElementPointIndexes])
+        lowerElementZCoordinates = np.sum(shapeFunctionDerivativesMinusOne * self.pointZCoords[lowerElementPointIndexes])
+        lowerElementDeltaArclength = np.sqrt(lowerElementXCoordinates**2 + lowerElementZCoordinates**2)
+        lowerElementTangentialVelocity = shapeFunctionDerivativesMinusOne / lowerElementDeltaArclength
+        kjRow[lowerElementPointIndexes] = lowerElementTangentialVelocity
+
+    
+        # Build system matrix with KJ condition
+        KSYS = np.zeros((self.numPoints + 1, self.numPoints + 1))
+        KSYS[:self.numPoints, :self.numPoints] = modifiedKqgMatrix
+        KSYS[:self.numPoints, self.numPoints] = vortexInfluenceMatrix
+        KSYS[self.numPoints, self.numPoints] = 2 * self.vortexVelocityZ[upperPointIndex] * self.normalX[upperPointIndex]
+        KSYS[self.numPoints, :self.numPoints] = kjRow
+        self.modifiedKqgMatrix = KSYS
+
         
     def generateInfluenceMatrices(self):
         numElements = len(self.connectionMatrix)
-        numPoints = len(self.pointXCoords)
-        self.kugMatrix = np.zeros((numPoints, numPoints))
-        self.kqgMatrix = np.zeros((numPoints, numPoints))
+        self.kugMatrix = np.zeros((self.numPoints, self.numPoints))
+        self.kqgMatrix = np.zeros((self.numPoints, self.numPoints))
         self.gaussXCoords = np.zeros((numElements, NUM_REFERENCE_ELEMENT_POINTS))
         self.gaussZCoords = np.zeros((numElements, NUM_REFERENCE_ELEMENT_POINTS))
         self.gaussWeights = np.zeros((numElements, NUM_REFERENCE_ELEMENT_POINTS))
@@ -78,8 +225,8 @@ class Geometry:
         self.gaussSines = np.zeros((numElements, NUM_REFERENCE_ELEMENT_POINTS))
 
         for elemIdx in range(numElements):
-            localKug = np.zeros((numPoints, NUM_POINTS_IN_ELEMENT))
-            localKqg = np.zeros((numPoints, NUM_POINTS_IN_ELEMENT))
+            localKug = np.zeros((self.numPoints, NUM_POINTS_IN_ELEMENT))
+            localKqg = np.zeros((self.numPoints, NUM_POINTS_IN_ELEMENT))
             elemConnection = self.connectionMatrix[elemIdx]
             elemX = self.pointXCoords[elemConnection]
             elemZ = self.pointZCoords[elemConnection]
@@ -93,8 +240,8 @@ class Geometry:
                 cosine = gaussDx / deltaS
                 sine = gaussDz / deltaS
 
-                distancesX = gaussX - self.colocationXCoords[:numPoints]
-                distancesZ = gaussZ - self.colocationZCoords[:numPoints]
+                distancesX = gaussX - self.colocationXCoords[:self.numPoints]
+                distancesZ = gaussZ - self.colocationZCoords[:self.numPoints]
                 radii = np.sqrt(distancesX**2 + distancesZ**2)
                 greensFunc = -np.log(radii) / (2 * np.pi)
                 greensFuncNormal = -(sine * distancesX - cosine * distancesZ) / (2 * np.pi * radii**2)
@@ -113,7 +260,7 @@ class Geometry:
 
             for ptIdx in range(NUM_POINTS_IN_ELEMENT):
                 connectionIdx = elemConnection[ptIdx]
-                if connectionIdx < numPoints:
+                if connectionIdx < self.numPoints:
                     self.kugMatrix[:, connectionIdx] += localKug[:, ptIdx]
                     self.kqgMatrix[:, connectionIdx] += localKqg[:, ptIdx]
 
@@ -145,12 +292,12 @@ class Geometry:
     
         # W_inf_t is the signed component of acceleration perpendicular to orientation
         W_inf_t = np.dot(acceleration_perp, perp_vector)  # Signed perpendicular acceleration
-    
+#         print("U_inf, W_inf", U_inf, W_inf, U_inf_t, W_inf_t)
 #         Reverse velocity values to change to apparent current
-        U_inf = -U_inf
-        W_inf = -W_inf
-        U_inf_t = -U_inf_t
-        W_inf_t = -W_inf_t
+#         U_inf = -U_inf
+#         W_inf = -W_inf
+#         U_inf_t = -U_inf_t
+#         W_inf_t = -W_inf_t
         
         rhs = (U_inf * self.normalX + W_inf * self.normalZ)
         rhsT = (U_inf_t * self.normalX + W_inf_t * self.normalZ)
@@ -168,14 +315,37 @@ class Geometry:
         phiT = self.kugMatrix @ phiT
         return phiT
         
+    def solveForPotentialWithKJCondition(self, localVelocityVector, rhs):
+        rhs = np.dot(self.kugMatrix, rhs)
+#         print("self.kugMatrix", self.kugMatrix)
+#         print("self.kqgMatrix", self.modifiedKqgMatrix[:self.numPoints, :self.numPoints])
+#         Verify kug done
+#        Verify kqg its off
+#       Verify vortex velocity normal good
+#        Verify each modification of kqg
+#         print("self.ModifiedKqgMatrix", self.modifiedKqgMatrix)
+#        Verify rhs
+#        Verify solution
+#        Verify tangential velocities
+#        Verify forces
+        lowerPointIndex = (self.numPoints // 2) + 1
+        rhs[lowerPointIndex] = 0
+        rhsKJ = -2 * localVelocityVector[1] * self.normalX[lowerPointIndex]
+        rhs = np.concatenate([rhs, [rhsKJ]])
+#         print("self.modifiedKqgMatrix", self.modifiedKqgMatrix)
+        
+        solution = np.linalg.solve(self.modifiedKqgMatrix, rhs)
+        phi = -solution[:self.numPoints]
+        gamma = solution[self.numPoints]
+        return phi, gamma
+        
     def computeTangentialTotalVelocity(self, perturbationPhi, localVelocityVector):
-        numPoints = len(self.pointXCoords)
         U_inf = localVelocityVector[0]
         W_inf = localVelocityVector[1]
 #     (kugMatrix, phiNormal, vortexGamma, vortexPhi, xCoords, zCoords, numPoints, U_inf, W_inf):
         totalPhi = perturbationPhi + localVelocityVector[0] * self.pointXCoords + localVelocityVector[1] * self.pointZCoords
-        tangentialPertVel = np.zeros(numPoints)
-        tangentialTotalVel = np.zeros(numPoints)
+        tangentialPertVel = np.zeros(self.numPoints)
+        tangentialTotalVel = np.zeros(self.numPoints)
         intrinsicCoordinates = [-1, 0, 1]
     #     shapeFunctions = funf1(intrinsicCoordinates, NUM_POINTS_IN_ELEMENT)
     #     shapeFunctionDerivatives = dfunf1(intrinsicCoordinates, NUM_POINTS_IN_ELEMENT)
@@ -214,23 +384,24 @@ class Geometry:
                 pointSine = pointZCoordinateDerivative/pointDeltaArclength
     #             print(elementConnectionMatrix[pointIndex])
                 tangentialPertVelLocal = sum(shapeFunctionDerivatives * perturbationPhi[elementConnectionMatrix[:]])/pointDeltaArclength
-                tangentialTotalVelLocal = tangentialPertVelLocal + U_inf*pointSine + W_inf*pointCosine
+                tangentialTotalVelLocal = tangentialPertVelLocal + U_inf*pointCosine + W_inf*pointSine
     #             print("tangentialPertLocal", tangentialPertVelLocal)
     #             print("tangentialTotalLocal", tangentialTotalVelLocal)
                 tangentialPertVel[elementConnectionMatrix[pointIndex]] = tangentialPertVel[elementConnectionMatrix[pointIndex]] + elementWeights[pointIndex] * tangentialPertVelLocal
                 tangentialTotalVel[elementConnectionMatrix[pointIndex]] = tangentialTotalVel[elementConnectionMatrix[pointIndex]] + elementWeights[pointIndex] * tangentialTotalVelLocal
 
     
-    #     print("tangentialPertVel", tangentialPertVel)
-        if(self.hasTrailingEdge):
-            tangentialTotalVel[0:numPoints//2] += (U_inf * -normalZ[0:numPoints//2] + W_inf*normalX[0:numPoints//2])
-            tangentialTotalVel[numPoints//2+1:] += (U_inf * -normalZ[numPoints//2+1:] + W_inf*normalX[numPoints//2+1:])
-        return tangentialTotalVel
+
+        return tangentialPertVel, tangentialTotalVel
         
         
 #     TODO: Combime with calculateVortexVelocityNormal function
-    def computeTangentialVortexVelocity(self):
-        numPoints = len(self.pointXCoords)
+    def addVortexContribution(self, phi, phiT, tangentialTotalVelocity, gamma):
+        phi += gamma * self.vortexPhi
+        phiT += gamma**2 * self.vortexPhiT
+        tangentialTotalVelocity[:self.numPoints//2+1] += (gamma * self.vortexVelocityX[:self.numPoints//2+1] * -self.normalZ[:self.numPoints//2+1]) + (gamma * self.vortexVelocityZ[:self.numPoints//2+1] * self.normalX[:self.numPoints//2+1])
+        tangentialTotalVelocity[self.numPoints//2+1:] += (gamma * self.vortexVelocityX[self.numPoints//2+1:] * -self.normalZ[self.numPoints//2+1:]) + (gamma * self.vortexVelocityZ[self.numPoints//2+1:] * self.normalX[self.numPoints//2+1:])
+        return phi, phiT, tangentialTotalVelocity
 
         
     def computeForce(self, velocityVector, phi, phiT, tangentialTotalVel):
@@ -251,45 +422,92 @@ class Geometry:
                 tangentialVelAtGaussPoint = sum(self.shapeFunctions[:, gaussPointIndex] * tangentialTotalVel[self.connectionMatrix[elementIndex]])
                 phiTAtGaussPoint = sum(self.shapeFunctions[:, gaussPointIndex] * phiT[self.connectionMatrix[elementIndex]])
                 dynamicPressure = 0.5*RHO*(U_mag_squared - tangentialVelAtGaussPoint**2) + RHO*phiTAtGaussPoint
-    #             dynamicPressure = 0.5*RHO*(U_mag_squared - tangentialVelAtGaussPoint**2)
+#                 dynamicPressure = 0.5*RHO*(U_mag_squared - tangentialVelAtGaussPoint**2)
                 dynamicPressures.append(dynamicPressure)
                 forceZ = forceZ - dynamicPressure * self.gaussCosines[elementIndex, gaussPointIndex] * self.gaussWeights[elementIndex, gaussPointIndex]
                 forceX = forceX - dynamicPressure * self.gaussSines[elementIndex, gaussPointIndex] * self.gaussWeights[elementIndex, gaussPointIndex]
-    #     lift = 0.5*RHO*(U_mag_squared - (tangentialVelX**2 + tangentialVelZ**2)) * normalZ * ds
-    #     print("LIFT:", lift)
-    #     print("integratedDynamicPressureForceX:", integratedDynamicPressureForceX)    #     print("ForceMagnitude: ", forceMagnitude)
-
-        # Compute forces using total pressure
-    #     forceX = 0.0
-    #     forceZ = 0.0
-    #     for i in range(numPoints):
-    #         forceX += total_pressure[i] * normalX[i] * ds[i]
-    #         forceZ -= total_pressure[i] * normalZ[i] * ds[i]
-    #     
-    #     # Compute dynamic pressure for return value (used for animations)
-    #     dynamic_pressure = 0.5 * RHO * velocityMag
-    #     dynamic_pressure = total_pressure
         
         forceVector = [forceX, forceZ]
         return forceVector
     
     
+    def projectForceVector(self, orientationVector, forceVector):
+        """
+        Project forceVector onto orientationVector and its perpendicular vector.
+        Returns a 2D vector where the first component is the force along the orientation
+        vector (preserving sign) and the second component is the force perpendicular to it
+        (preserving sign).
+        
+        Args:
+            orientationVector (list): 2D vector [x, y] defining the foil's orientation.
+            forceVector (list): 2D force vector [fx, fy] in global coordinates.
+        
+        Returns:
+            list: [force_along, force_perp] in foil local coordinates.
+        """
+        import numpy as np
+        
+        # Convert inputs to NumPy arrays
+        orient = np.array(orientationVector, dtype=float)
+        force = np.array(forceVector, dtype=float)
+        
+        # Normalize orientation vector
+        norm = np.sqrt(orient @ orient)
+        orient = orient / norm
+        
+        # Compute force along orientation vector (scalar projection)
+        force_along = force @ orient
+        
+        # Compute perpendicular vector (rotate orientation vector 90 degrees counterclockwise)
+        perp_vector = np.array([-orient[1], orient[0]])
+        
+        # Compute force perpendicular to orientation vector (signed projection)
+        force_perp = force @ perp_vector
+        
+        return [force_along, force_perp]
     
     def computeForceFromFlow(self, orientationVector, velocityVector, accelerationVector):
         localVelocityVector, rhs, localAccelerationVector, rhsT = self.computeRhs(orientationVector, velocityVector, accelerationVector)
 #         print(localVelocityVector, rhs)
 #         print(localVelocityVector)
-        phi = self.solveForPotential(rhs)
+        if(self.hasTrailingEdge):
+            phi, gamma = self.solveForPotentialWithKJCondition(localVelocityVector, rhs)
+#             print("phi, gamma", phi, gamma)
+#             quit()
+        else:
+            phi = self.solveForPotential(rhs)
 #         print(phi)
 #         quit()
 #         quit()
 #         quit()
-        tangentialTotalVel = self.computeTangentialTotalVelocity(phi, localVelocityVector)
+        tangentialPertVelocity, tangentialTotalVelocity = self.computeTangentialTotalVelocity(phi, localVelocityVector)
+
 #         print(tangentialTotalVel)
 #         quit()
         phiT = self.solveForPotentialT(rhsT)
-        forceVector = self.computeForce(localVelocityVector, phi, phiT, tangentialTotalVel)
+        if(self.hasTrailingEdge):
+            phi, phiT, tangentialTotalVelocity = self.addVortexContribution(phi, phiT, tangentialTotalVelocity, gamma)
+        localForceVector = self.computeForce(localVelocityVector, phi, phiT, tangentialTotalVelocity)
+        self.plotForces("object_forces.png", localVelocityVector, tangentialPertVelocity, localForceVector)
+        self.plotPotential("object_potential.png", phi)
+        self.plotVelocity("object_velocity.png", tangentialTotalVelocity)
+#         print("gamma", gamma)
+#         U_infinity = np.sqrt(localVelocityVector[0]**2 + localVelocityVector[1]**2)
+# #             lift = RHO * U_infinity * Gamma
+#         dynamicPressure = 0.5 * RHO * U_infinity**2
+# #             foilLiftCoeff = lift / (dynamicPressure * NACA_CHORD_LENGTH) if dynamicPressure != 0 else 0
+#         foilLiftCoeff = -2 * gamma / (U_infinity * 0.203)
+#         liftPerUnitSpan = foilLiftCoeff * dynamicPressure * 0.203
+#             print("GAMMA: ", Gamma)
+#             print("KUTTA LIFT COEFF", foilLiftCoeff)
+#         print("KUTTA LIFT FORCE", liftPerUnitSpan)
+#         print("Force Vector", localForceVector)
+#         print(orientationVector)
+        forceVector = self.projectForceVector(orientationVector, localForceVector)
+#         print("forceVector", forceVector)
+#         project forceVector onto orientationVector
         return forceVector
+        
 #         tangentialVortexVelocity = self.computeTangentialVortexVelocity()
     
     
@@ -305,10 +523,78 @@ class Geometry:
         plt.legend()
         plt.savefig(os.path.join('graphs', filename))
         plt.close()
+        
+    def plotNormals(self, filename):
+        plt.grid(True)
+        plt.axis('equal')
+        plt.scatter(self.pointXCoords, self.pointZCoords, label="points", s=5)
+        plt.scatter(self.colocationXCoords, self.colocationZCoords, label="colocation points", s=5)
+        for element in self.connectionMatrix:
+            plt.plot(self.pointXCoords[element], self.pointZCoords[element])
+        for i in range(len(self.pointXCoords)):
+            plt.arrow(self.pointXCoords[i], self.pointZCoords[i],
+                      self.normalX[i] * 0.1, self.normalZ[i] * 0.1,
+                      head_width=0.1, head_length=0.1, fc='green', ec='green', label='Normal Vectors' if i == 0 else "")
+        plt.title("normal vectors")
+        plt.legend()
+        plt.savefig(os.path.join('graphs', filename))
+        plt.close()
 
+    def plotForces(self, filename, localVelocityVector, tangentialTotalVelocity, forceVector):
+        plt.grid(True)
+        plt.axis('equal')
+        plt.scatter(self.pointXCoords, self.pointZCoords, label="points", s=5)
+        plt.scatter(self.colocationXCoords, self.colocationZCoords, label="colocation points", s=5)
+        for element in self.connectionMatrix:
+            plt.plot(self.pointXCoords[element], self.pointZCoords[element])
+        scale = 0.1
+        for i in range(len(self.pointXCoords)):
+            plt.arrow(self.pointXCoords[i], self.pointZCoords[i],
+                      tangentialTotalVelocity[i] * -self.normalZ[i] * scale, tangentialTotalVelocity[i] * self.normalX[i] * scale,
+                      head_width=0.005, head_length=0.005, fc='green', ec='green', label='Tangential Velocity Vectors' if i == 0 else "")
+        plt.arrow(min(self.pointXCoords) - 0.1, 0,
+                  localVelocityVector[0] * scale/2, localVelocityVector[1] * scale/2,
+                  head_width=0.01, head_length=0.01, fc='red', ec='red', label='Apparent Velocity' if i == 0 else "")
+        plt.arrow(min(self.pointXCoords) - 0.1, -.1,
+                  localVelocityVector[0] * scale/2, localVelocityVector[1] * scale/2,
+                  head_width=0.01, head_length=0.01, fc='red', ec='red', label='Apparent Velocity' if i == 0 else "")
+        plt.arrow(min(self.pointXCoords) - 0.1, .1,
+                  localVelocityVector[0] * scale/2, localVelocityVector[1] * scale/2,
+                  head_width=0.01, head_length=0.01, fc='red', ec='red', label='Apparent Velocity' if i == 0 else "")
+        plt.arrow(min(self.pointXCoords) - 0.1, .2,
+                  localVelocityVector[0] * scale/2, localVelocityVector[1] * scale/2,
+                  head_width=0.01, head_length=0.01, fc='red', ec='red', label='Apparent Velocity' if i == 0 else "")
+                  
+        plt.arrow(self.pointXCoords[self.numPoints//4], 0,
+                  forceVector[0] * 0.01, forceVector[1] * 0.01,
+                  head_width=0.01, head_length=0.01, fc='pink', ec='pink', label='Force Vector' if i == 0 else "")
 
+        plt.title("Local Velocity Frame")
+        plt.legend()
+        plt.savefig(os.path.join('graphs', filename))
+        plt.close()
 
+    def plotPotential(self, filename, phi):
+        plt.figure()
+        plt.plot(self.pointXCoords[:self.numPoints//2+1], phi[:self.numPoints//2+1], label="upper")
+        plt.plot(self.pointXCoords[self.numPoints//2+1:], phi[self.numPoints//2+1:], label="lower")
+        plt.legend()
+        plt.xlabel("equal")
+        plt.ylabel("Perturbation Potential")
+        plt.title("Perturbation Potential Along Boundary")
+        plt.savefig(os.path.join('graphs', filename))
+        plt.close()
 
+    def plotVelocity(self, filename, tangentialTotalVelocity):
+        plt.figure()
+        plt.plot(self.pointXCoords[:self.numPoints//2+1], tangentialTotalVelocity[:self.numPoints//2+1], label="upper")
+        plt.plot(self.pointXCoords[self.numPoints//2+1:], tangentialTotalVelocity[self.numPoints//2+1:], label="lower")
+        plt.legend()
+        plt.xlabel("equal")
+        plt.ylabel("Velocity")
+        plt.title("Tangential Total Velocity Along Boundary")
+        plt.savefig(os.path.join('graphs', filename))
+        plt.close()
 
 CIRCLE_COLOCATION_SCALING_FACTOR = 0.95        
 class Circle:

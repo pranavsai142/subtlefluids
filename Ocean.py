@@ -1,4 +1,7 @@
 from Geometry import Geometry, Circle, Foil
+import numpy as np
+import matplotlib.pyplot as plt
+import os
 
 class Ocean:
     def __init__(self, deltaX, deltaZ):
@@ -36,11 +39,12 @@ class Object:
         self.geometry = self.geometryData.geometry
         self.mass = 0
         self.positionVector = [positionX, positionZ]
-        self.velocityVector = [0, 1]
-        self.accelerationVector = [0, 0]
+        self.velocityVector = [-0.0, -1]
+        self.accelerationVector = [0, 9.8]
 #         Start pointing straight down
         self.orientationVector = [0, -1]
         self.angleOfAttack = 0
+        self.forceVector = [0,0]
         
     def rotateLeft(self):
         self.orientationVector = [0, -1]
@@ -49,9 +53,13 @@ class Object:
         self.angleOfAttack += 1
         
     def updatePosition(self):
-        forceVector = self.geometry.computeForceFromFlow(self.orientationVector, self.velocityVector, self.accelerationVector)
-        print("Force Vector from Flow", forceVector)
+        self.forceVector = self.geometry.computeForceFromFlow(self.orientationVector, self.velocityVector, self.accelerationVector)
+        self.plotForces("global_forces.png")
+        
+
+#         print("Force Vector from Flow", forceVector)
         self.positionVector[1] -= 0.1
+        quit()
 #          Compute rhs, based on apparent curent, which is opposite of velocity. Initially 0
 #           Solve influence matrices from geometry
 #          Solve for perturbation phi
@@ -72,3 +80,70 @@ class Object:
 #          
 #           object.solveForFlow(velocity)
 #           inside Foil class, willl have logic to handle KJ condition
+
+    def plotForces(self, filename):
+        # Convert orientation and force to NumPy arrays
+        orient = np.array(self.orientationVector, dtype=float)
+        force = np.array(self.forceVector, dtype=float)
+        
+        # Normalize orientation vector to get local x-axis in global coordinates
+        norm = np.sqrt(orient @ orient)
+        local_x_axis = orient / norm  # Global direction of local x-axis ([-1, 0] in local)
+        
+        # Compute local z-axis in global coordinates (perpendicular, 90° counterclockwise)
+        local_z_axis = np.array([-local_x_axis[1], local_x_axis[0]])
+        
+        # Transform local coordinates to global coordinates
+        # Local basis: x-axis = [-1, 0], z-axis = [0, 1]
+        # Global coords = x_local * (-local_x_axis) + z_local * local_z_axis
+        globalXCoords = []
+        globalZCoords = []
+        for x_local, z_local in zip(self.geometry.pointXCoords, self.geometry.pointZCoords):
+            # Local point = [x_local, z_local]
+            # Global point = x_local * [-1, 0] + z_local * [0, 1] mapped to global basis
+            global_point = x_local * (-local_x_axis) + z_local * local_z_axis
+            globalXCoords.append(global_point[0])
+            globalZCoords.append(global_point[1])
+        
+        globalColocationXCoords = []
+        globalColocationZCoords = []
+        for x_local, z_local in zip(self.geometry.colocationXCoords, self.geometry.colocationZCoords):
+            global_point = x_local * (-local_x_axis) + z_local * local_z_axis
+            globalColocationXCoords.append(global_point[0])
+            globalColocationZCoords.append(global_point[1])
+        
+        # Transform forceVector to global coordinates
+        # Local force: [f_along, f_perp] along [-1, 0] and [0, 1]
+        # Global force = f_along * (-local_x_axis) + f_perp * local_z_axis
+        globalForce = force[0] * (-local_x_axis) + force[1] * local_z_axis
+        
+        # Compute centroid for force arrow (average of points)
+        centroidX = np.mean(globalXCoords)
+        centroidZ = np.mean(globalZCoords)
+        
+        apparentCurrentVector = -np.array(self.velocityVector)
+        plt.grid(True)
+        plt.axis('equal')
+        plt.scatter(globalXCoords, globalZCoords, label="points", s=5)
+        scale = 0.1
+        plt.arrow(0, min(globalZCoords) - 0.1,
+                  apparentCurrentVector[0] * scale/2, apparentCurrentVector[1] * scale/2,
+                  head_width=0.01, head_length=0.01, fc='red', ec='red', label='Apparent Velocity')
+        plt.arrow(-.1, min(globalZCoords) - 0.1,
+                  apparentCurrentVector[0] * scale/2, apparentCurrentVector[1] * scale/2,
+                  head_width=0.01, head_length=0.01, fc='red', ec='red')
+        plt.arrow(.1, min(globalZCoords) - 0.1,
+                  apparentCurrentVector[0] * scale/2, apparentCurrentVector[1] * scale/2,
+                  head_width=0.01, head_length=0.01, fc='red', ec='red')
+        plt.arrow(.2, min(globalZCoords) - 0.1,
+                  apparentCurrentVector[0] * scale/2, apparentCurrentVector[1] * scale/2,
+                  head_width=0.01, head_length=0.01, fc='red', ec='red')
+                  
+        plt.arrow(centroidX, centroidZ,
+                self.forceVector[0] * 0.01, self.forceVector[1] * 0.01,
+                head_width=0.01, head_length=0.01, fc='pink', ec='pink', label='Force Vector')
+                  
+        plt.title("Global Velocity Frame")
+        plt.legend()
+        plt.savefig(os.path.join('graphs', filename))
+        plt.close()

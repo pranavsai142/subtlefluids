@@ -3,8 +3,57 @@ import matplotlib.pyplot as plt
 from scipy.interpolate import interp1d
 import os
 import imageio.v2 as imageio
-from functions import legpts, funf1, dfunf1, nacaz
 from tqdm import tqdm
+
+# functions.py
+
+# functions.py
+
+def legpts(n):
+    # Simplified version - in practice, use scipy.special.roots_legendre
+    x, w = np.polynomial.legendre.leggauss(n)
+    return x, w
+
+def funf1(xi, nnode):
+    NJ = np.zeros((nnode, len(xi)))
+    if nnode == 2:
+        NJ[0, :] = 0.5*(1-xi)
+        NJ[1, :] = 0.5*(1+xi)
+    elif nnode == 3:
+        NJ[0, :] = 0.5*xi*(xi-1)
+        NJ[1, :] = 1-xi*xi
+        NJ[2, :] = 0.5*xi*(xi+1)
+    return NJ
+
+def dfunf1(xi, nnode):
+    DNJ = np.zeros((nnode, len(xi)))
+    if nnode == 2:
+        DNJ[0, :] = -0.5
+        DNJ[1, :] = 0.5
+    elif nnode == 3:
+        DNJ[0, :] = xi-0.5
+        DNJ[1, :] = -2*xi
+        DNJ[2, :] = xi+0.5
+    return DNJ
+
+def nacaz(xip):
+    C0 = 0.594689181
+    C1 = 0.298222773
+    C2 = -0.127125232
+    C3 = -0.357907906
+    C4 = 0.291984971
+    C5 = -0.105174606
+    return C0*(C1*np.sqrt(xip) + C2*xip + C3*xip**2 + C4*xip**3 + C5*xip**4)
+
+def nacadz(xip):
+    C0 = 0.594689181
+    C1 = 0.298222773
+    C2 = -0.127125232
+    C3 = -0.357907906
+    C4 = 0.291984971
+    C5 = -0.105174606
+    return C0*(0.5*C1/np.sqrt(xip) + C2 + 2*C3*xip + 3*C4*xip**2 + 4*C5*xip**3)
+
 
 # Ensure the graphs folder exists
 if not os.path.exists('graphs'):
@@ -40,7 +89,7 @@ DT = T / NUM_TIME_STEPS
 TIME_STEPS = np.linspace(0, T, NUM_TIME_STEPS + 1)
 
 # Angles of attack to test (in degrees)
-ALPHA_DEGREES = [0, 5, 8, 10, 11, 14, -8]
+ALPHA_DEGREES = [10, 5, 8, 10, 11, 14, -8]
 # ALPHA_DEGREES = [0, 8]
 # New constants for plot limits
 LIFT_COEFF_MIN = -700.0
@@ -57,7 +106,7 @@ WIND_VELOCITY_MAX = U_0 * 1.1   # Slightly above max velocity for visibility
 NUM_VORTEX_POINTS = 100
 INTEGRATE_VORTEX=True
 
-SOLVE_CIRCLE = True
+SOLVE_CIRCLE = False
 GRAPH_MAPS = False
 
 # Utility Functions
@@ -361,11 +410,14 @@ def computeBoundaryQuantities(kugMatrix, phiNormal, vortexGamma, vortexPhi, xCoo
             tangentialPertVel[elementConnectionMatrix[pointIndex]] = tangentialPertVel[elementConnectionMatrix[pointIndex]] + elementWeights[pointIndex] * tangentialPertVelLocal
             tangentialTotalVel[elementConnectionMatrix[pointIndex]] = tangentialTotalVel[elementConnectionMatrix[pointIndex]] + elementWeights[pointIndex] * tangentialTotalVelLocal
 
+#     tangentialTotalVel = tangentialPertVel
     
 #     print("tangentialPertVel", tangentialPertVel)
+#     tangentialTotalVel = tangentialPertVel
+#     tangentialTotalVel += (U_inf * normalZ + W_inf * normalX)
     tangentialVelX = tangentialPertVel * tangentX
     tangentialVelZ = tangentialPertVel * tangentZ
-    
+    tangentialTotalVel += (vortexGamma * vortexVelocityX * -normalZ) + (vortexGamma * vortexVelocityZ * normalX)
 
     perturbationPhi += vortexGamma * vortexPhi
     
@@ -745,6 +797,26 @@ if(SOLVE_CIRCLE):
     print(f"Circle Added Mass (at t = 0): {added_mass:.4f} kg/m")
     print(f"Theoretical Added Mass: {theoretical_added_mass:.4f} kg/m")
     print(f"Relative Error: {abs(added_mass - theoretical_added_mass) / theoretical_added_mass * 100:.2f}%")
+    
+    plt.grid(True)
+    plt.axis('equal')
+    plt.scatter(circlePointXCoords, circlePointZCoords, label="points", s=5)
+    plt.scatter(circleColocationXCoords, circleColocationZCoords, label="colocation points", s=5)
+    for element in connectionMatrix:
+        plt.plot(circlePointXCoords[element], circlePointZCoords[element])
+    scale = 0.2
+    for i in range(len(circlePointXCoords)):
+        plt.arrow(circlePointXCoords[i], circlePointZCoords[i],
+                  circleTangentialTotalVelocity[i] * -circleNormalZ[i] * scale, circleTangentialTotalVelocity[i] * circleNormalX[i] * scale,
+                  head_width=0.05, head_length=0.05, fc='green', ec='green', label='Tangential Velocity Vectors' if i == 0 else "")
+    plt.arrow(0, 0,
+              circleForceX * 0.01, circleForceZ * 0.01,
+              head_width=0.05, head_length=0.05, fc='green', ec='green', label='Tangential Velocity Vectors' if i == 0 else "")
+
+    plt.title("Local Velocity Frame")
+    plt.show()
+    plt.close()
+
     quit()
     # Time series for circle with added mass computation
     for t_idx, t in tqdm(enumerate(TIME_STEPS), total=len(TIME_STEPS), desc="Circle Time Steps"):
@@ -1006,10 +1078,10 @@ for alpha_deg in ALPHA_DEGREES:
     for t_idx, t in tqdm(enumerate(TIME_STEPS), total=len(TIME_STEPS), desc=f"NACA Foil Time Steps (α = {alpha_deg}°)"):
         sin_omega_t = np.sin(OMEGA * t)
         cos_omega_t = np.cos(OMEGA * t)
-        U_inf = U_0 * sin_omega_t * np.cos(alpha)
-        W_inf = U_0 * sin_omega_t * np.sin(alpha)
-#         U_inf = U_0 * np.cos(alpha)
-#         W_inf = U_0 * np.sin(alpha)
+#         U_inf = U_0 * sin_omega_t * np.cos(alpha)
+#         W_inf = U_0 * sin_omega_t * np.sin(alpha)
+        U_inf = U_0 * np.cos(alpha)
+        W_inf = U_0 * np.sin(alpha)
         
         normalX, normalZ, rhs = computeNormalsAndRhs(pointXCoords, pointZCoords, numPointsEffective, U_inf, W_inf)
 
@@ -1244,10 +1316,10 @@ for alpha_deg in ALPHA_DEGREES:
             foilPertPotentialFrames.append(foilPertPotentialFrameFilename)
             plt.close()
 
-            U_inf_t = U_0 * OMEGA * cos_omega_t * np.cos(alpha)
-            W_inf_t = U_0 * OMEGA * cos_omega_t * np.sin(alpha)
-#             U_inf_t = 0
-#             W_inf_t = 0
+#             U_inf_t = U_0 * OMEGA * cos_omega_t * np.cos(alpha)
+#             W_inf_t = U_0 * OMEGA * cos_omega_t * np.sin(alpha)
+            U_inf_t = 0
+            W_inf_t = 0
             _, _, rhsPhiNormalT = computeNormalsAndRhs(pointXCoords, pointZCoords, numPointsEffective, U_inf_t, W_inf_t)
             rhsPhiNormalT[lowerPointIndex] = 0
             rhsPhiNormalTKJ = W_inf_t * normalX[lowerPointIndex]
@@ -1270,8 +1342,8 @@ for alpha_deg in ALPHA_DEGREES:
             flowDirZ = np.sin(alpha)
             currentUnitVector = [flowDirX, flowDirZ]
             currentPerpendicularUnitVector = [-flowDirZ, flowDirX]
-#             print("forceX", forceX)
-#             print("forceZ", forceZ)
+            print("forceX", forceX)
+            print("forceZ", forceZ)
             forcesX.append(forceX)
             forcesZ.append(forceZ)
 #             quit()
@@ -1312,14 +1384,15 @@ for alpha_deg in ALPHA_DEGREES:
             plt.scatter(pointXCoords, pointZCoords, c='red', label='Geometry Points')
 # 
 # #             Plot normal vectors (green) and vortex velocities (red)
-            scale = 0.02
+            print("Gamma", Gamma)
+            scale = 0.2
             for i in range(len(pointXCoords)):
                 plt.arrow(pointXCoords[i], pointZCoords[i],
                           tangentialTotalVel[i] * -normalZ[i] * scale, tangentialTotalVel[i] * normalX[i] * scale,
                            fc='green', ec='green', label='Tangential Velocities' if i == 0 else "")
-            plt.arrow(NACA_CHORD_LENGTH/2, 0,
-                forceX * scale * 0.01, forceZ * scale * 0.01,
-                   fc='pink', ec='pink', label='Force Vector')
+#             plt.arrow(NACA_CHORD_LENGTH/2, 0,
+#                 forceX * scale * 0.01, forceZ * scale * 0.01,
+#                    fc='pink', ec='pink', label='Force Vector')
 #                 plt.arrow(pointXCoords[i], pointZCoords[i],
 #                           vortexVelocityX[i] * scale, vortexVelocityZ[i] * scale,
 #                           head_width=0.005, head_length=0.01, fc='red', ec='red', label='Vortex Velocities' if i == 0 else "")
@@ -1333,6 +1406,7 @@ for alpha_deg in ALPHA_DEGREES:
             foilTangentialTotalVelocityVectorsFrameFilename = os.path.join('graphs', f"foil_tangential_total_velocity_vectors_{alpha_deg}_frame_{t_idx:03d}.png")
             plt.savefig(foilTangentialTotalVelocityVectorsFrameFilename)
             foilTangentialTotalVelocityVectorsFrames.append(foilTangentialTotalVelocityVectorsFrameFilename)
+            plt.show()
             plt.close()
 #             plt.show()
 

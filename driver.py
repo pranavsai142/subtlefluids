@@ -13,7 +13,7 @@ circle.geometry.plotGeometry("circle_geometry.png")
 circle.geometry.plotNormals("circle_normals.png")
 
 # Add the object to environment
-ocean = Ocean(5, 20)
+ocean = Ocean(100, 50)
 circleObject = ocean.addObject(foil)
 
 # Evolve the motion of the object

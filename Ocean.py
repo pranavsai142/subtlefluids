@@ -3,6 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import os
 import imageio
+import copy
 
 MAX_FRAMES = 100
 class Ocean:
@@ -42,7 +43,7 @@ class Ocean:
                 self.plotForces(frameFilename, object)
                 self.frameFilenames.append(frameFilename)
                 self.forceVectors.append(object.forceVector)
-                self.positionVectors.append(object.positionVector)
+                self.positionVectors.append(copy.copy(object.positionVector))
                 self.velocityVectors.append(object.velocityVector)
                 self.accelerationVectors.append(object.accelerationVector)
             
@@ -150,20 +151,21 @@ class Ocean:
         plt.close()
 
         
-GRAVITY = .0981
-DELTA_T = 0.01
+GRAVITY = 9.81
+GRAVITY_VECTOR = np.array([0, -GRAVITY])
+DELTA_T = 0.5
 MAX_VELOCITY = 1000000
 MAX_ACCELERATION = 1000000
 class Object:
     def __init__(self, geometryData, positionX, positionZ):
         self.geometryData = geometryData
         self.geometry = self.geometryData.geometry
-        self.mass = 300
+        self.mass = 100
         self.positionVector = [positionX, positionZ]
         print(self.positionVector)
 #         quit()
         self.velocityVector = [0, 0]
-        self.accelerationVector = [0.0, 0]
+        self.accelerationVector = GRAVITY_VECTOR / self.mass
 #         Start pointing straight down
         self.orientationVector = [0, -1]
         self.angleOfAttack = 0
@@ -198,22 +200,27 @@ class Object:
     def updatePosition(self):
 #         self.velocityVector[0] += 0.001
 #         self.velocityVector[1] -= 0.01
-#         self.accelerationVector = [0.0, -3]
+
         self.forceVector = self.geometry.computeForceFromFlow(self.orientationVector, self.velocityVector, self.accelerationVector)
-        print("global force vector", self.forceVector)
+        print("global force vector without gravity", self.forceVector)
 #         self.velocityVector[1] += -1
-        gravityVector = np.array([0, -GRAVITY])
-#         
+        accelerationMagnitude = np.sqrt(self.accelerationVector[0]**2 + self.accelerationVector[1]**2)
+        forceMagnitude = np.sqrt(self.forceVector[0]**2 + self.forceVector[1]**2)
+        addedMass = forceMagnitude / accelerationMagnitude
+        print("added mass", addedMass)
 # #         # Compute total force: external force + gravity
-        totalForceVector = self.forceVector + (self.mass * gravityVector)
-        totalForceVector = (self.mass * gravityVector)
+        totalForceVector = self.forceVector + (self.mass * GRAVITY_VECTOR)
+        print("total force vector", totalForceVector)
+#         totalForceVector = (self.mass * gravityVector)
         
         # Compute acceleration: a = F/m
-        self.accelerationVector = totalForceVector / self.mass
+        self.accelerationVector = (totalForceVector / (self.mass + addedMass))
+        print("accelerationVector", self.accelerationVector)
         self.capAcceleration()
 # #         print(self.accelerationVector)
 #         # Update velocity: v(t + Δt) = v(t) + a(t) * Δt
         self.velocityVector += self.accelerationVector * DELTA_T
+        print("velocityVector", self.velocityVector)
         self.capVelocity()
 #         print(self.velocityVector)
         

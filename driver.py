@@ -14,7 +14,7 @@ circle.geometry.plotNormals("circle_normals.png")
 
 # Add the object to environment
 ocean = Ocean(100, 50)
-circleObject = ocean.addObject(foil)
+circleObject = ocean.addObject(circle)
 
 # Evolve the motion of the object
 leftKeyPressed = True

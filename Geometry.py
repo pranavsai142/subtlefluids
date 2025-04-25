@@ -523,7 +523,7 @@ class Geometry:
 #         print(orientationVector)
         forceVector = self.projectForceVector(orientationVector, localForceVector)
 #         forceVector = localForceVector
-        print("local force vector", localForceVector)
+#         print("local force vector", localForceVector)
 #         project forceVector onto orientationVector
         return forceVector
         
@@ -591,7 +591,7 @@ class Geometry:
         plt.title("Local Velocity Frame")
         plt.legend()
         plt.savefig(filename)
-#         plt.show()
+        plt.show()
         plt.close()
 
     def plotPotential(self, filename, phi):

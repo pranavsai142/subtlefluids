@@ -31,12 +31,8 @@ class Geometry:
                 dx = self.pointXCoords[i+1] - self.pointXCoords[i-1]
                 dz = self.pointZCoords[i+1] - self.pointZCoords[i-1]
             length = np.sqrt(dx**2 + dz**2)
-            if(self.hasTrailingEdge):
-                self.normalX[i] = dz / length
-                self.normalZ[i] = -dx / length
-            else:
-                self.normalX[i] = -dz / length
-                self.normalZ[i] = dx / length
+            self.normalX[i] = dz / length
+            self.normalZ[i] = -dx / length
             
     def generateReferenceElementData(self):
         self.referenceCoords, self.referenceWeights = np.polynomial.legendre.leggauss(NUM_REFERENCE_ELEMENT_POINTS)
@@ -300,10 +296,8 @@ class Geometry:
 #         W_inf_t = -W_inf_t
         
         rhs = (U_inf * self.normalX + W_inf * self.normalZ)
-        if(self.hasTrailingEdge):
-            rhsT = (U_inf_t * -self.normalX + W_inf_t * -self.normalZ)
-        else:
-            rhsT = (U_inf_t * self.normalX + W_inf_t * self.normalZ)
+        rhsT = (U_inf_t * self.normalX + W_inf_t * self.normalZ)
+
         
         localVelocityVector = [U_inf, W_inf]
         localAccelerationVector = [U_inf_t, W_inf_t]
@@ -348,7 +342,7 @@ class Geometry:
         rhsT = np.concatenate([rhsT, [rhsTKJ]])
 # #         print("self.modifiedKqgMatrix", self.modifiedKqgMatrix)
 #         
-        solution = np.linalg.solve(self.modifiedKqgMatrix, rhs)
+        solution = np.linalg.solve(self.modifiedKqgMatrix, rhsT)
         phiT = -solution[:self.numPoints]
         gammaT = solution[self.numPoints]
 #         print(phiT)
@@ -515,16 +509,16 @@ class Geometry:
         
         self.plotPotential("object_potential.png", phi)
         self.plotVelocity("object_velocity.png", tangentialTotalVelocity)
-        print("gamma", gamma)
-        U_infinity = np.sqrt(localVelocityVector[0]**2 + localVelocityVector[1]**2)
-# # #             lift = RHO * U_infinity * Gamma
-        dynamicPressure = 0.5 * RHO * U_infinity**2
-# # #             foilLiftCoeff = lift / (dynamicPressure * NACA_CHORD_LENGTH) if dynamicPressure != 0 else 0
-        foilLiftCoeff = -2 * gamma / (U_infinity * 0.203)
-        liftPerUnitSpan = foilLiftCoeff * dynamicPressure * 0.203
+#         print("gamma", gamma)
+#         U_infinity = np.sqrt(localVelocityVector[0]**2 + localVelocityVector[1]**2)
+# # # #             lift = RHO * U_infinity * Gamma
+#         dynamicPressure = 0.5 * RHO * U_infinity**2
+# # # #             foilLiftCoeff = lift / (dynamicPressure * NACA_CHORD_LENGTH) if dynamicPressure != 0 else 0
+#         foilLiftCoeff = -2 * gamma / (U_infinity * 0.203)
+#         liftPerUnitSpan = foilLiftCoeff * dynamicPressure * 0.203
 #             print("GAMMA: ", Gamma)
 
-        print("KUTTA LIFT FORCE", liftPerUnitSpan)
+#         print("KUTTA LIFT FORCE", liftPerUnitSpan)
 #         print("Local Force Vector", localForceVector)
 #         print(orientationVector)
         forceVector = self.projectForceVector(orientationVector, localForceVector)

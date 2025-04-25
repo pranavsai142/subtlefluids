@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import os
 import imageio
 
-MAX_FRAMES = 10
+MAX_FRAMES = 100
 class Ocean:
     def __init__(self, deltaX, deltaZ):
         print("Initializing Ocean")
@@ -144,13 +144,16 @@ class Ocean:
         plt.xlabel("Time (s)")
         plt.title(title + " vs time")
         plt.legend()
+#         plt.ylim([-30, 30])     
     #     plt.ylim(LIFT_COEFF_MIN, LIFT_COEFF_MAX)
         plt.savefig(filename)
         plt.close()
 
         
-GRAVITY = 9.81
-DELTA_T = 0.1
+GRAVITY = .0981
+DELTA_T = 0.01
+MAX_VELOCITY = 1000000
+MAX_ACCELERATION = 1000000
 class Object:
     def __init__(self, geometryData, positionX, positionZ):
         self.geometryData = geometryData
@@ -159,8 +162,8 @@ class Object:
         self.positionVector = [positionX, positionZ]
         print(self.positionVector)
 #         quit()
-        self.velocityVector = [-0.0, 0]
-        self.accelerationVector = [0, 0]
+        self.velocityVector = [0, 0]
+        self.accelerationVector = [0.0, 0]
 #         Start pointing straight down
         self.orientationVector = [0, -1]
         self.angleOfAttack = 0
@@ -172,9 +175,30 @@ class Object:
     def updateAngleOfAttack(self):
         self.angleOfAttack += 1
         
+    def capAcceleration(self):
+        if(self.accelerationVector[0] > MAX_ACCELERATION):
+            self.accelerationVector[0] = MAX_ACCELERATION
+        elif(self.accelerationVector[0] < -MAX_ACCELERATION):
+            self.accelerationVector[0] = -MAX_ACCELERATION
+        if(self.accelerationVector[1] > MAX_ACCELERATION):
+            self.accelerationVector[1] = MAX_ACCELERATION
+        elif(self.accelerationVector[1] < -MAX_ACCELERATION):
+            self.accelerationVector[1] = -MAX_ACCELERATION
+    
+    def capVelocity(self):
+        if(self.velocityVector[0] > MAX_VELOCITY):
+            self.velocityVector[0] = MAX_VELOCITY
+        elif(self.velocityVector[0] < -MAX_VELOCITY):
+            self.velocityVector[0] = -MAX_VELOCITY
+        if(self.velocityVector[1] > MAX_VELOCITY):
+            self.velocityVector[1] = MAX_VELOCITY
+        elif(self.velocityVector[1] < -MAX_VELOCITY):
+            self.velocityVector[1] = -MAX_VELOCITY
+        
     def updatePosition(self):
-#         self.velocityVector = [0.1, -1]
-#         self.accelerationVector = [0, -3]
+#         self.velocityVector[0] += 0.001
+#         self.velocityVector[1] -= 0.01
+#         self.accelerationVector = [0.0, -3]
         self.forceVector = self.geometry.computeForceFromFlow(self.orientationVector, self.velocityVector, self.accelerationVector)
         print("global force vector", self.forceVector)
 #         self.velocityVector[1] += -1
@@ -182,16 +206,19 @@ class Object:
 #         
 # #         # Compute total force: external force + gravity
         totalForceVector = self.forceVector + (self.mass * gravityVector)
-#         
-#         # Compute acceleration: a = F/m
+        totalForceVector = (self.mass * gravityVector)
+        
+        # Compute acceleration: a = F/m
         self.accelerationVector = totalForceVector / self.mass
+        self.capAcceleration()
 # #         print(self.accelerationVector)
 #         # Update velocity: v(t + Δt) = v(t) + a(t) * Δt
         self.velocityVector += self.accelerationVector * DELTA_T
-# #         print(self.velocityVector)
-#         
+        self.capVelocity()
+#         print(self.velocityVector)
+        
 #         # Update position: p(t + Δt) = p(t) + v(t) * Δt
-        self.positionVector += self.velocityVector * DELTA_T
+        self.positionVector += np.array(self.velocityVector) * DELTA_T
         
 
 #         print("Force Vector from Flow", forceVector)

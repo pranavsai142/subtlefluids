@@ -776,7 +776,7 @@ if(SOLVE_CIRCLE):
         circleKugMatrix, circleGamma, 0, 0, circlePointXCoords, circlePointZCoords, numCirclePointsEffective, U_inf, W_inf)
     _, _, circleRhsPhiT = computeNormalsAndRhs(circlePointXCoords[:numCirclePointsEffective], circlePointZCoords[:numCirclePointsEffective], numCirclePointsEffective, U_inf_t, W_inf_t)
     circleGammaPhiT = solveBem(circleKqgMatrix, circleRhsPhiT, numCirclePointsEffective)
-    print("tangential", circleTangentialTotalVelocity)
+#     print("tangential", circleTangentialTotalVelocity)
 #     print(circleGammaPhiT)
 #     print("circleConnectionMatrix", circleConnectionMatrix)
 #     print("circleAssemblyMatrix", circleAssemblyMatrix)
@@ -789,7 +789,7 @@ if(SOLVE_CIRCLE):
 #     print("circlePhiT", circlePhiT)
     circleForceX, circleForceZ, _ = computeForcesAndPressure(
         circlePerturbationPhi, circlePhiT, circleTangentialVelX, circleTangentialVelZ, circleTangentialTotalVelocity, circleNormalX, circleNormalZ, circleDs, U_inf, W_inf, numCirclePointsEffective)
-    print("circleForceX, circleForceZ", circleForceX, circleForceZ)
+#     print("circleForceX, circleForceZ", circleForceX, circleForceZ)
     force_magnitude = np.sqrt(circleForceX**2 + circleForceZ**2)
     acceleration_magnitude = np.sqrt(U_inf_t**2 + W_inf_t**2)
     added_mass = force_magnitude / acceleration_magnitude if acceleration_magnitude != 0 else 0

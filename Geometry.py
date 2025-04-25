@@ -510,15 +510,15 @@ class Geometry:
         self.plotPotential("object_potential.png", phi)
         self.plotVelocity("object_velocity.png", tangentialTotalVelocity)
 #         print("gamma", gamma)
-#         U_infinity = np.sqrt(localVelocityVector[0]**2 + localVelocityVector[1]**2)
+        U_infinity = np.sqrt(localVelocityVector[0]**2 + localVelocityVector[1]**2)
 # # # #             lift = RHO * U_infinity * Gamma
-#         dynamicPressure = 0.5 * RHO * U_infinity**2
+        dynamicPressure = 0.5 * RHO * U_infinity**2
 # # # #             foilLiftCoeff = lift / (dynamicPressure * NACA_CHORD_LENGTH) if dynamicPressure != 0 else 0
-#         foilLiftCoeff = -2 * gamma / (U_infinity * 0.203)
-#         liftPerUnitSpan = foilLiftCoeff * dynamicPressure * 0.203
+        foilLiftCoeff = -2 * gamma / (U_infinity * 0.203)
+        liftPerUnitSpan = foilLiftCoeff * dynamicPressure * 0.203
 #             print("GAMMA: ", Gamma)
 
-#         print("KUTTA LIFT FORCE", liftPerUnitSpan)
+        print("KUTTA LIFT FORCE", liftPerUnitSpan)
 #         print("Local Force Vector", localForceVector)
 #         print(orientationVector)
         forceVector = self.projectForceVector(orientationVector, localForceVector)
@@ -586,7 +586,7 @@ class Geometry:
                   
         plt.arrow(self.pointXCoords[self.numPoints//4], 0,
                   forceVector[0] * 0.01, forceVector[1] * 0.01,
-                  head_width=0.01, head_length=0.01, fc='pink', ec='pink', label='Force Vector' if i == 0 else "")
+                  head_width=0.00001, head_length=0.00001, fc='pink', ec='pink', label='Force Vector' if i == 0 else "")
 
         plt.title("Local Velocity Frame")
         plt.legend()

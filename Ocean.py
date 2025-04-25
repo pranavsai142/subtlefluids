@@ -44,8 +44,8 @@ class Ocean:
                 self.frameFilenames.append(frameFilename)
                 self.forceVectors.append(object.forceVector)
                 self.positionVectors.append(copy.copy(object.positionVector))
-                self.velocityVectors.append(object.velocityVector)
-                self.accelerationVectors.append(object.accelerationVector)
+                self.velocityVectors.append(copy.copy(object.velocityVector))
+                self.accelerationVectors.append(copy.copy(object.accelerationVector))
             
                 objectFrameFilename = os.path.join("graphs", "local_forces_" + str(self.frameNumber) + ".png")
                 object.geometry.plotForces(objectFrameFilename, object.geometry.localVelocityVector, object.geometry.tangentialTotalVelocity, object.geometry.localForceVector)
@@ -108,7 +108,7 @@ class Ocean:
         
         apparentCurrentVector = -np.array(object.velocityVector)
         plt.grid(True)
-        plt.axis('equal')
+#         plt.axis('equal')
         plt.scatter(globalXCoords, globalZCoords, label="points", s=5)
         scale = 0.1
         plt.arrow(min(globalXCoords), min(globalZCoords) - 0.1,
@@ -123,8 +123,8 @@ class Ocean:
                 object.forceVector[0] * 0.01, object.forceVector[1] * 0.01,
                 head_width=0.01, head_length=0.01, fc='pink', ec='pink', label='Force Vector')
         
-#         plt.xlim([0, self.deltaX])
-#         plt.ylim([-self.deltaZ, 1])          
+        plt.xlim([0, self.deltaX])
+        plt.ylim([-self.deltaZ, 1])          
         plt.title("Global Velocity Frame")
         plt.legend()
         plt.savefig(filename)
@@ -146,21 +146,21 @@ class Ocean:
         plt.title(title + " vs time")
         plt.legend()
 #         plt.ylim([-30, 30])     
-    #     plt.ylim(LIFT_COEFF_MIN, LIFT_COEFF_MAX)
+#         plt.ylim(LIFT_COEFF_MIN, LIFT_COEFF_MAX)
         plt.savefig(filename)
         plt.close()
 
         
 GRAVITY = 9.81
 GRAVITY_VECTOR = np.array([0, -GRAVITY])
-DELTA_T = 0.5
+DELTA_T = 0.1
 MAX_VELOCITY = 1000000
 MAX_ACCELERATION = 1000000
 class Object:
     def __init__(self, geometryData, positionX, positionZ):
         self.geometryData = geometryData
         self.geometry = self.geometryData.geometry
-        self.mass = 100
+        self.mass = 16
         self.positionVector = [positionX, positionZ]
         print(self.positionVector)
 #         quit()
@@ -200,7 +200,10 @@ class Object:
     def updatePosition(self):
 #         self.velocityVector[0] += 0.001
 #         self.velocityVector[1] -= 0.01
-
+#         self.orientationVector[0] += 0.01
+#         self.orientationVector[1] -= 0.01
+        self.velocityVector = [1, -5]
+        self.accelerationVector = [0, -5]
         self.forceVector = self.geometry.computeForceFromFlow(self.orientationVector, self.velocityVector, self.accelerationVector)
         print("global force vector without gravity", self.forceVector)
 #         self.velocityVector[1] += -1
@@ -210,11 +213,13 @@ class Object:
         print("added mass", addedMass)
 # #         # Compute total force: external force + gravity
         totalForceVector = self.forceVector + (self.mass * GRAVITY_VECTOR)
+#         totalForceVector = (self.mass * GRAVITY_VECTOR)
         print("total force vector", totalForceVector)
 #         totalForceVector = (self.mass * gravityVector)
         
         # Compute acceleration: a = F/m
         self.accelerationVector = (totalForceVector / (self.mass + addedMass))
+#         self.accelerationVector = (totalForceVector / (self.mass))
         print("accelerationVector", self.accelerationVector)
         self.capAcceleration()
 # #         print(self.accelerationVector)

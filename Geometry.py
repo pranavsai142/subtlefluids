@@ -345,6 +345,7 @@ class Geometry:
         solution = np.linalg.solve(self.modifiedKqgMatrix, rhsT)
         phiT = -solution[:self.numPoints]
         gammaT = solution[self.numPoints]
+#         print("GAMMAT", gammaT)
 #         print(phiT)
         
         return phi, gamma, phiT
@@ -432,6 +433,7 @@ class Geometry:
                 tangentialVelAtGaussPoint = sum(self.shapeFunctions[:, gaussPointIndex] * tangentialTotalVel[self.connectionMatrix[elementIndex]])
                 phiTAtGaussPoint = sum(self.shapeFunctions[:, gaussPointIndex] * phiT[self.connectionMatrix[elementIndex]])
                 dynamicPressure = 0.5*RHO*(U_mag_squared - tangentialVelAtGaussPoint**2) + RHO*phiTAtGaussPoint
+#                 dynamicPressure = 0.5*RHO*(U_mag_squared - tangentialVelAtGaussPoint**2)
                 dynamicPressures.append(dynamicPressure)
                 forceZ = forceZ - dynamicPressure * self.gaussCosines[elementIndex, gaussPointIndex] * self.gaussWeights[elementIndex, gaussPointIndex]
                 forceX = forceX - dynamicPressure * self.gaussSines[elementIndex, gaussPointIndex] * self.gaussWeights[elementIndex, gaussPointIndex]
@@ -478,8 +480,8 @@ class Geometry:
     def computeForceFromFlow(self, orientationVector, velocityVector, accelerationVector):
         localVelocityVector, rhs, localAccelerationVector, rhsT = self.computeRhs(orientationVector, velocityVector, accelerationVector)
 #         print(localVelocityVector, rhs)
-        print("acceleration vector", accelerationVector)
-        print("local acceleration vector", localAccelerationVector)
+#         print("acceleration vector", accelerationVector)
+#         print("local acceleration vector", localAccelerationVector)
         if(self.hasTrailingEdge):
             phi, gamma, phiT = self.solveForPotentialWithKJCondition(localVelocityVector, rhs, localAccelerationVector, rhsT)
 #             print("phi, gamma", phi, gamma)
@@ -507,19 +509,21 @@ class Geometry:
         self.tangentialTotalVelocity = tangentialTotalVelocity
         self.localForceVector = localForceVector
         
-        self.plotPotential("object_potential.png", phi)
-        self.plotVelocity("object_velocity.png", tangentialTotalVelocity)
+#         self.plotPotential("object_potential.png", phi)
+#         self.plotVelocity("object_velocity.png", tangentialTotalVelocity)
 #         print("gamma", gamma)
-        U_infinity = np.sqrt(localVelocityVector[0]**2 + localVelocityVector[1]**2)
-# # # #             lift = RHO * U_infinity * Gamma
-        dynamicPressure = 0.5 * RHO * U_infinity**2
-# # # #             foilLiftCoeff = lift / (dynamicPressure * NACA_CHORD_LENGTH) if dynamicPressure != 0 else 0
-        foilLiftCoeff = -2 * gamma / (U_infinity * 0.203)
-        liftPerUnitSpan = foilLiftCoeff * dynamicPressure * 0.203
+#         U_infinity = np.sqrt(localVelocityVector[0]**2 + localVelocityVector[1]**2)
+# # # # #             lift = RHO * U_infinity * Gamma
+#         dynamicPressure = 0.5 * RHO * U_infinity**2
+# # # # #             foilLiftCoeff = lift / (dynamicPressure * NACA_CHORD_LENGTH) if dynamicPressure != 0 else 0
+#         foilLiftCoeff = -2 * gamma / (U_infinity * 0.203)
+#         liftPerUnitSpan = foilLiftCoeff * dynamicPressure * 0.203
 #             print("GAMMA: ", Gamma)
 
-        print("KUTTA LIFT FORCE", liftPerUnitSpan)
+#         print("KUTTA LIFT FORCE", liftPerUnitSpan)
 #         print("Local Force Vector", localForceVector)
+#         self.plotForces("test.png", localVelocityVector, tangentialTotalVelocity, localForceVector)
+#         input("enter")
 #         print(orientationVector)
         forceVector = self.projectForceVector(orientationVector, localForceVector)
 #         forceVector = localForceVector
@@ -591,7 +595,7 @@ class Geometry:
         plt.title("Local Velocity Frame")
         plt.legend()
         plt.savefig(filename)
-        plt.show()
+#         plt.show()
         plt.close()
 
     def plotPotential(self, filename, phi):

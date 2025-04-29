@@ -443,7 +443,7 @@ class Object:
         accelerationMagnitude = np.sqrt(self.accelerationVector[0]**2 + self.accelerationVector[1]**2)
         forceMagnitude = np.sqrt(self.forceVector[0]**2 + self.forceVector[1]**2)
         self.addedMass = forceMagnitude / accelerationMagnitude
-        print("added mass", self.addedMass)
+#         print("added mass", self.addedMass)
         
     def updatePosition(self):
 #         self.velocityVector[0] += 0.001

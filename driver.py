@@ -57,7 +57,7 @@ tunnel = Tunnel()
 renderer = Renderer(windowWidth=1000, windowHeight=800, environment="tunnel")
 
 # Add an object to the Tunnel (assuming 'foil' is defined)
-tunnelObject = tunnel.addObject(foil)
+tunnelObject = tunnel.addObject(circle)
 
 # Evolve the motion of the object
 frame = 0
@@ -73,7 +73,7 @@ renderer.quit()
 
 # Initialize the Ocean
 ocean = Ocean(100, 100)
-oceanObject = ocean.addObject(foil)  # Assuming 'foil' is defined
+oceanObject = ocean.addObject(circle)  # Assuming 'foil' is defined
 
 # Initialize the Renderer for Ocean
 renderer = Renderer(windowWidth=1000, windowHeight=800, deltaX=ocean.deltaX, deltaZ=ocean.deltaZ, environment="ocean")

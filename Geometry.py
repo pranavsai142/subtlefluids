@@ -438,8 +438,8 @@ class Geometry:
         for elementIndex in range(numElements):
             for gaussPointIndex in range(NUM_REFERENCE_ELEMENT_POINTS):
                 tangentialVelAtGaussPoint = sum(self.shapeFunctions[:, gaussPointIndex] * tangentialTotalVel[self.connectionMatrix[elementIndex]])
-                phiTAtGaussPoint = sum(self.shapeFunctions[:, gaussPointIndex] * -phiT[self.connectionMatrix[elementIndex]])
-                dynamicPressure = 0.5*RHO*(U_mag_squared - tangentialVelAtGaussPoint**2) - RHO*phiTAtGaussPoint
+                phiTAtGaussPoint = sum(self.shapeFunctions[:, gaussPointIndex] * phiT[self.connectionMatrix[elementIndex]])
+                dynamicPressure = 0.5*RHO*(U_mag_squared - tangentialVelAtGaussPoint**2) + RHO*phiTAtGaussPoint
 #                 dynamicPressure = 0.5*RHO*(U_mag_squared - tangentialVelAtGaussPoint**2)
                 dynamicPressures.append(dynamicPressure)
                 forceZ = forceZ - dynamicPressure * self.gaussCosines[elementIndex, gaussPointIndex] * self.gaussWeights[elementIndex, gaussPointIndex]

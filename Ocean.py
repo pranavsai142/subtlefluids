@@ -56,7 +56,7 @@ class Ocean:
                 if(PLOT_FRAMES):
                     frameFilename = os.path.join("graphs", "global_forces_" + str(self.frameNumber) + ".png")
                     orientationFrameFilename = os.path.join("graphs", "global_orientation_" + str(self.frameNumber) + ".png")
-    #                 self.plotForces(frameFilename, orientationFrameFilename, object)
+                    self.plotForces(frameFilename, orientationFrameFilename, object)
                     self.frameFilenames.append(frameFilename)
                     self.orientationFrameFilenames.append(orientationFrameFilename)
                     objectFrameFilename = os.path.join("graphs", "local_forces_" + str(self.frameNumber) + ".png")
@@ -232,7 +232,7 @@ class Tunnel:
             
                 if(PLOT_FRAMES):
                     frameFilename = os.path.join("graphs", "tunnel_global_forces_" + str(self.frameNumber) + ".png")
-                    orientationFrameFilename = os.path.join("graphs", "tunnel_orientation_" + str(self.frameNumber) + ".png")
+                    orientationFrameFilename = os.path.join("graphs", "tunnel_local_orientation_" + str(self.frameNumber) + ".png")
                     self.plotForces(frameFilename, orientationFrameFilename, object)
                     self.frameFilenames.append(frameFilename)
                     self.orientationFrameFilenames.append(orientationFrameFilename)
@@ -370,7 +370,7 @@ class Object:
     def __init__(self, geometryData, positionX, positionZ):
         self.geometryData = geometryData
         self.geometry = self.geometryData.geometry
-        self.mass = 160
+        self.mass = 100
         self.positionVector = [positionX, positionZ]
         print(self.positionVector)
 #         quit()
@@ -443,7 +443,7 @@ class Object:
         accelerationMagnitude = np.sqrt(self.accelerationVector[0]**2 + self.accelerationVector[1]**2)
         forceMagnitude = np.sqrt(self.forceVector[0]**2 + self.forceVector[1]**2)
         self.addedMass = forceMagnitude / accelerationMagnitude
-#         print("added mass", self.addedMass)
+        print("added mass", self.addedMass)
         
     def updatePosition(self):
 #         self.velocityVector[0] += 0.001
@@ -460,6 +460,7 @@ class Object:
         self.updateForce(self.velocityVector, self.accelerationVector)
 # #         # Compute total force: external force + gravity
         totalForceVector = self.forceVector + ((self.mass + self.addedMass) * GRAVITY_VECTOR)
+#         totalForceVector = self.forceVector + ((self.mass) * GRAVITY_VECTOR)
 #         self.forceVector = totalForceVector
 #         gravityForceVector = (self.mass * GRAVITY_VECTOR)
 #         print("total force vector", totalForceVector)

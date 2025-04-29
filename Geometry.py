@@ -295,8 +295,12 @@ class Geometry:
 #         U_inf_t = -U_inf_t
 #         W_inf_t = -W_inf_t
         
-        rhs = (U_inf * self.normalX + W_inf * self.normalZ)
-        rhsT = (U_inf_t * self.normalX + W_inf_t * self.normalZ)
+        if(self.hasTrailingEdge):
+            rhs = (U_inf * self.normalX + W_inf * self.normalZ)
+            rhsT = (U_inf_t * self.normalX + W_inf_t * self.normalZ)
+        else:
+            rhs = -(U_inf * self.normalX + W_inf * self.normalZ)
+            rhsT = -(U_inf_t * self.normalX + W_inf_t * self.normalZ)
 
         
         localVelocityVector = [U_inf, W_inf]
@@ -343,9 +347,12 @@ class Geometry:
 # #         print("self.modifiedKqgMatrix", self.modifiedKqgMatrix)
 #         
         solution = np.linalg.solve(self.modifiedKqgMatrix, rhsT)
-        phiT = -solution[:self.numPoints]
+        phiT = solution[:self.numPoints]
         gammaT = solution[self.numPoints]
+#         print("phiT", phiT)
 #         print("GAMMAT", gammaT)
+#         print("gamma", gamma)
+#         quit()
 #         print(phiT)
         
         return phi, gamma, phiT
@@ -431,8 +438,8 @@ class Geometry:
         for elementIndex in range(numElements):
             for gaussPointIndex in range(NUM_REFERENCE_ELEMENT_POINTS):
                 tangentialVelAtGaussPoint = sum(self.shapeFunctions[:, gaussPointIndex] * tangentialTotalVel[self.connectionMatrix[elementIndex]])
-                phiTAtGaussPoint = sum(self.shapeFunctions[:, gaussPointIndex] * phiT[self.connectionMatrix[elementIndex]])
-                dynamicPressure = 0.5*RHO*(U_mag_squared - tangentialVelAtGaussPoint**2) + RHO*phiTAtGaussPoint
+                phiTAtGaussPoint = sum(self.shapeFunctions[:, gaussPointIndex] * -phiT[self.connectionMatrix[elementIndex]])
+                dynamicPressure = 0.5*RHO*(U_mag_squared - tangentialVelAtGaussPoint**2) - RHO*phiTAtGaussPoint
 #                 dynamicPressure = 0.5*RHO*(U_mag_squared - tangentialVelAtGaussPoint**2)
                 dynamicPressures.append(dynamicPressure)
                 forceZ = forceZ - dynamicPressure * self.gaussCosines[elementIndex, gaussPointIndex] * self.gaussWeights[elementIndex, gaussPointIndex]
@@ -479,9 +486,10 @@ class Geometry:
     
     def computeForceFromFlow(self, orientationVector, velocityVector, accelerationVector):
         localVelocityVector, rhs, localAccelerationVector, rhsT = self.computeRhs(orientationVector, velocityVector, accelerationVector)
-#         print(localVelocityVector, rhs)
+#         print("localVelocityVector", localVelocityVector)
 #         print("acceleration vector", accelerationVector)
 #         print("local acceleration vector", localAccelerationVector)
+#         print("orientation vector", orientationVector)
         if(self.hasTrailingEdge):
             phi, gamma, phiT = self.solveForPotentialWithKJCondition(localVelocityVector, rhs, localAccelerationVector, rhsT)
 #             print("phi, gamma", phi, gamma)
@@ -528,6 +536,8 @@ class Geometry:
         forceVector = self.projectForceVector(orientationVector, localForceVector)
 #         forceVector = localForceVector
 #         print("local force vector", localForceVector)
+#         print("force vector", forceVector)
+#         input()
 #         project forceVector onto orientationVector
         return forceVector
         
@@ -595,7 +605,7 @@ class Geometry:
         plt.title("Local Velocity Frame")
         plt.legend()
         plt.savefig(filename)
-#         plt.show()
+        plt.show()
         plt.close()
 
     def plotPotential(self, filename, phi):
@@ -644,7 +654,6 @@ class Circle:
             assemblyMatrix[i] = [(start + j) % self.numPoints for j in range(NUM_POINTS_IN_ELEMENT)]
         
         self.geometry.setElementMatrices(connectionMatrix, assemblyMatrix)
-
 
 
 

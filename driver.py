@@ -17,14 +17,14 @@ circle.geometry.plotNormals("circle_normals.png")
 # Constants for flow generation
 T = 100
 OMEGA = 2 * np.pi / T
+# OMEGA = 0
 WIND_SPEED = 10
-ALPHA = 0
+ALPHA = np.radians(0)
 U_0 = WIND_SPEED  # Assuming U_0 should be WIND_SPEED based on context
 
-def generateSteadyFlow(frame):
+def generateUnsteadyFlow(frame):
     sinOmegaT = np.sin(OMEGA * frame)
     cosOmegaT = np.cos(OMEGA * frame)
-    alpha = 0
     velocityX = WIND_SPEED * sinOmegaT * np.cos(ALPHA)
     velocityZ = WIND_SPEED * sinOmegaT * np.sin(ALPHA)
     accelerationX = U_0 * OMEGA * cosOmegaT * np.cos(ALPHA)
@@ -35,13 +35,26 @@ def generateSteadyFlow(frame):
 #     accelerationX = 0
 #     accelerationZ = 0
     acceleration = [-accelerationX, -accelerationZ]
+#     print(acceleration)
+#     quit()
+    return velocity, acceleration
+    
+def generateSteadyFlow(frame):
+    velocityX = WIND_SPEED * np.cos(ALPHA)
+    velocityZ = WIND_SPEED * np.sin(ALPHA)
+#     velocityX = 1  # Using the hardcoded values as per your original function
+#     velocityZ = 0
+    velocity = [-velocityX, -velocityZ]
+#     accelerationX = 0
+#     accelerationZ = 0
+    acceleration = [0, 0]
     return velocity, acceleration
 
 # Initialize the Tunnel
 tunnel = Tunnel()
 
 # Initialize the Renderer for Tunnel
-renderer = Renderer(windowWidth=800, windowHeight=600, environment="tunnel")
+renderer = Renderer(windowWidth=1000, windowHeight=800, environment="tunnel")
 
 # Add an object to the Tunnel (assuming 'foil' is defined)
 tunnelObject = tunnel.addObject(foil)
@@ -49,7 +62,7 @@ tunnelObject = tunnel.addObject(foil)
 # Evolve the motion of the object
 frame = 0
 while renderer.isRunning():
-    tunnelVelocity, tunnelAcceleration = generateSteadyFlow(frame)
+    tunnelVelocity, tunnelAcceleration = generateUnsteadyFlow(frame)
     tunnel.advanceTime(tunnelVelocity, tunnelAcceleration)
     renderer.render(tunnel)
 #     tunnel.printEnvironment()
@@ -63,7 +76,7 @@ ocean = Ocean(100, 100)
 oceanObject = ocean.addObject(foil)  # Assuming 'foil' is defined
 
 # Initialize the Renderer for Ocean
-renderer = Renderer(windowWidth=800, windowHeight=600, deltaX=ocean.deltaX, deltaZ=ocean.deltaZ, environment="ocean")
+renderer = Renderer(windowWidth=1000, windowHeight=800, deltaX=ocean.deltaX, deltaZ=ocean.deltaZ, environment="ocean")
 
 # Evolve the motion of the object
 leftKeyPressed = True

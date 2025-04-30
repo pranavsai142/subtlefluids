@@ -6,8 +6,8 @@ import imageio
 import math
 import copy
 
-MAX_FRAMES = 1000
-PLOT_FRAMES = False
+MAX_FRAMES = 100
+PLOT_FRAMES = True
 class Ocean:
     def __init__(self, deltaX, deltaZ):
         print("Initializing Ocean")
@@ -169,7 +169,7 @@ class Ocean:
         plt.plot(np.arange(self.frameNumber), [vector[0] for vector in vectors], label='X', linestyle='--')
         plt.plot(np.arange(self.frameNumber), [vector[1] for vector in vectors], label='Z')
         plt.grid(True)
-        plt.xlabel("Time (s)")
+        plt.xlabel("Time (frames)")
         plt.title(title + " vs time")
         plt.legend()
 #         plt.ylim([-30, 30])     
@@ -181,10 +181,10 @@ class Ocean:
         plt.figure(figsize=(10, 6))
         plt.plot(np.arange(self.frameNumber), values, label=title, linestyle='--')
         plt.grid(True)
-        plt.xlabel("Time (s)")
+        plt.xlabel("Time (frames)")
         plt.title(title + " vs time")
         plt.legend()
-#         plt.ylim([-30, 30])     
+        plt.ylim([0, 4000])     
 #         plt.ylim(LIFT_COEFF_MIN, LIFT_COEFF_MAX)
         plt.savefig(filename)
         plt.close()
@@ -339,7 +339,7 @@ class Tunnel:
         plt.plot(np.arange(self.frameNumber), [vector[0] for vector in vectors], label='X', linestyle='--')
         plt.plot(np.arange(self.frameNumber), [vector[1] for vector in vectors], label='Z')
         plt.grid(True)
-        plt.xlabel("Time (s)")
+        plt.xlabel("Time (frames)")
         plt.title(title + " vs time")
         plt.legend()
 #         plt.ylim([-30, 30])     
@@ -351,10 +351,10 @@ class Tunnel:
         plt.figure(figsize=(10, 6))
         plt.plot(np.arange(self.frameNumber), values, label=title, linestyle='--')
         plt.grid(True)
-        plt.xlabel("Time (s)")
+        plt.xlabel("Time (frames)")
         plt.title(title + " vs time")
         plt.legend()
-#         plt.ylim([-30, 30])     
+        plt.ylim([0, 4000])     
 #         plt.ylim(LIFT_COEFF_MIN, LIFT_COEFF_MAX)
         plt.savefig(filename)
         plt.close()
@@ -438,7 +438,19 @@ class Object:
         self.velocityVector = velocityVector
         self.accelerationVector = accelerationVector
         self.forceVector = self.geometry.computeForceFromFlow(self.orientationVector, velocityVector, accelerationVector)
-#         print("global force vector without gravity", self.forceVector)
+        # Normalize the velocity vector
+        normalVelocity = velocityVector / np.linalg.norm(velocityVector)
+
+        # Force component along (parallel to) velocity
+        force_along_velocity = np.dot(self.forceVector, normalVelocity) * normalVelocity
+
+        # Force component perpendicular to velocity
+        force_perpendicular = self.forceVector - force_along_velocity
+
+        # Print results
+        print("Global force vector along velocity (without gravity):", np.dot(self.forceVector, normalVelocity))
+        print("Force vector along velocity (parallel component):", force_along_velocity)
+        print("Force vector perpendicular to velocity:", force_perpendicular)
 #         self.velocityVector[1] += -1
         accelerationMagnitude = np.sqrt(self.accelerationVector[0]**2 + self.accelerationVector[1]**2)
         forceMagnitude = np.sqrt(self.forceVector[0]**2 + self.forceVector[1]**2)
@@ -459,8 +471,8 @@ class Object:
 #         self.accelerationVector = GRAVITY_VECTOR / self.mass
         self.updateForce(self.velocityVector, self.accelerationVector)
 # #         # Compute total force: external force + gravity
-        totalForceVector = self.forceVector + ((self.mass + self.addedMass) * GRAVITY_VECTOR)
-#         totalForceVector = self.forceVector + ((self.mass) * GRAVITY_VECTOR)
+#         totalForceVector = self.forceVector + ((self.mass + self.addedMass) * GRAVITY_VECTOR)
+        totalForceVector = self.forceVector + ((self.mass) * GRAVITY_VECTOR)
 #         self.forceVector = totalForceVector
 #         gravityForceVector = (self.mass * GRAVITY_VECTOR)
 #         print("total force vector", totalForceVector)

@@ -170,9 +170,10 @@ class Hydrofoiler:
                     self.pilot.cleanup()
                     self.pilot = None
                     self.state = "menu"
+            elif self.state == "menu":
+                self.mainMenu.update()  # Update the main menu for animations
         except Exception as e:
             logging.error(f"Error in update: {e}", exc_info=True)
-            # Do not set self.running = False; just log the error
             self.state = "menu"
             if self.state == "tunnel":
                 self.tunnel = None

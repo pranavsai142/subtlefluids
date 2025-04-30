@@ -486,14 +486,14 @@ class Geometry:
     
     def computeForceFromFlow(self, orientationVector, velocityVector, accelerationVector):
         localVelocityVector, rhs, localAccelerationVector, rhsT = self.computeRhs(orientationVector, velocityVector, accelerationVector)
-        print("localVelocityVector", localVelocityVector)
-        print("acceleration vector", accelerationVector)
-        print("local acceleration vector", localAccelerationVector)
-        print("orientation vector", orientationVector)
-        print("points x", self.pointXCoords)
-        print("points z", self.pointZCoords)
-        print("colocation x", self.colocationXCoords)
-        print("colocation z", self.colocationZCoords)
+#         print("localVelocityVector", localVelocityVector)
+#         print("acceleration vector", accelerationVector)
+#         print("local acceleration vector", localAccelerationVector)
+#         print("orientation vector", orientationVector)
+#         print("points x", self.pointXCoords)
+#         print("points z", self.pointZCoords)
+#         print("colocation x", self.colocationXCoords)
+#         print("colocation z", self.colocationZCoords)
         if(self.hasTrailingEdge):
             phi, gamma, phiT = self.solveForPotentialWithKJCondition(localVelocityVector, rhs, localAccelerationVector, rhsT)
 #             print("phi, gamma", phi, gamma)
@@ -523,7 +523,7 @@ class Geometry:
         
 #         self.plotPotential("object_potential.png", phi)
 #         self.plotVelocity("object_velocity.png", tangentialTotalVelocity)
-        print(self.pointXCoords)
+#         print(self.pointXCoords)
 #         U_infinity = np.sqrt(localVelocityVector[0]**2 + localVelocityVector[1]**2)
 # # # # #             lift = RHO * U_infinity * Gamma
 #         dynamicPressure = 0.5 * RHO * U_infinity**2
@@ -539,9 +539,9 @@ class Geometry:
 #         print(orientationVector)
         forceVector = self.projectForceVector(orientationVector, localForceVector)
 #         forceVector = localForceVector
-        print("local force vector", localForceVector)
-        print("force vector", forceVector)
-        quit()
+#         print("local force vector", localForceVector)
+#         print("force vector", forceVector)
+#         quit()
 #         input()
 #         project forceVector onto orientationVector
         return forceVector
@@ -610,7 +610,7 @@ class Geometry:
         plt.title("Local Velocity Frame")
         plt.legend()
         plt.savefig(filename)
-        plt.show()
+#         plt.show()
         plt.close()
 
     def plotPotential(self, filename, phi):

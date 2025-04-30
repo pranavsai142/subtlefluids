@@ -142,7 +142,7 @@ class Renderer:
             self.globalOffsetZ = 0.0
             self.prevSubDomainCenter = newSubDomainCenter
             self.firstRender = False
-            print("Initial view centered on first render")
+#             print("Initial view centered on first render")
         else:
             self.prevSubDomainCenter = newSubDomainCenter
         self.updateViewParameters()
@@ -216,7 +216,7 @@ class Renderer:
 
     def _renderGlobalView(self, environmentObj, surface):
         subDomainCenter = self._computeSubDomainCenter(environmentObj)
-        print(f"subDomainCenter: {subDomainCenter}")
+#         print(f"subDomainCenter: {subDomainCenter}")
         if self.environment in ["ocean", "pilot"]:
             centerX, centerZ = subDomainCenter
             xMin = centerX - self.subDomainSizeX / 2
@@ -252,8 +252,8 @@ class Renderer:
                 globalPoint = xLocal * (-localXAxis) + zLocal * localZAxis + obj.positionVector
                 globalXCoords.append(globalPoint[0])
                 globalZCoords.append(globalPoint[1])
-            print(f"Object global coordinates: {list(zip(globalXCoords, globalZCoords))}")
-            print(f"Object positionVector: {obj.positionVector}")
+#             print(f"Object global coordinates: {list(zip(globalXCoords, globalZCoords))}")
+#             print(f"Object positionVector: {obj.positionVector}")
             for x, z in zip(globalXCoords, globalZCoords):
                 screenPos = self._toScreenCoords(x, z, isGlobalView=True, subDomainCenter=subDomainCenter)
                 if (screenPos[0] > self.globalWidth + self.globalPos[0] or screenPos[0] < self.globalPos[0] or
@@ -307,7 +307,6 @@ class Renderer:
                                           isGlobalView=True, subDomainCenter=subDomainCenter)
                 pygame.draw.line(surface, self.laserColor, start, end, 2)
 
-
     def _renderOrientationView(self, environmentObj, surface):
         overlay = pygame.Surface((self.orientWidth, self.orientHeight), pygame.SRCALPHA)
         overlay.fill(self.orientBgColor)
@@ -341,19 +340,34 @@ class Renderer:
                 start = self._toScreenCoords(x, z, isOrientView=True, orientCenter=(centroidX, centroidZ), orientScale=orientScale)
                 end = self._toScreenCoords(x + vecX, z + vecZ, isOrientView=True, orientCenter=(centroidX, centroidZ), orientScale=orientScale)
                 self._drawArrow(surface, start, end, self.tangentialColor)
-            # Apparent current vectors (red, shifted right and made smaller)
+            # Apparent current vectors (red, in middle third with visible stems)
             localVel = np.array(obj.geometry.localVelocityVector, dtype=float)
             norm = np.sqrt(localVel[0]**2 + localVel[1]**2)
             if norm > 0:
-                targetScreenLength = min(self.orientWidth, self.orientHeight) * 0.1  # Reduced size (was 0.15)
+                # Increase target length for visible stems
+                targetScreenLength = min(self.orientWidth, self.orientHeight) * 0.2 * (maxRange / 1.0)
+                targetScreenLength = min(targetScreenLength, self.orientWidth * 0.3)
                 velScale = targetScreenLength / (norm * orientScale)
                 localVel = localVel * velScale
-                # Shift right: position closer to the geometry
-                xStart = min(obj.geometry.pointXCoords) - (maxRange * 0.5)  # Reduced offset (was 1.2)
-                for offsetZ in [0, -0.1, 0.1, 0.2]:
+                # Position in the middle third of the subscreen
+                middleThirdXStart = self.orientPos[0] + self.orientWidth / 3
+                middleThirdXEnd = self.orientPos[0] + 2 * self.orientWidth / 3
+                middleThirdYStart = self.orientPos[1] + self.orientHeight / 3
+                middleThirdYEnd = self.orientPos[1] + 2 * self.orientHeight / 3
+                # Center the arrows vertically within the middle third
+                zSpacing = zRange * 0.3
+                offsets = [-zSpacing, 0, zSpacing] if zRange > 0.1 else [-0.03, 0, 0.03]
+                # Position xStart to the left within the middle third
+                xStart = min(obj.geometry.pointXCoords) - (maxRange * 0.2)
+                for offsetZ in offsets:
                     start = self._toScreenCoords(xStart, offsetZ, isOrientView=True, orientCenter=(centroidX, centroidZ), orientScale=orientScale)
                     end = self._toScreenCoords(xStart + localVel[0], offsetZ + localVel[1], isOrientView=True, orientCenter=(centroidX, centroidZ), orientScale=orientScale)
-                    self._drawArrow(surface, start, end, self.velocityColor)
+                    # Clamp to middle third of the subscreen
+                    start = (max(middleThirdXStart, min(middleThirdXEnd, start[0])),
+                             max(middleThirdYStart, min(middleThirdYEnd, start[1])))
+                    end = (max(middleThirdXStart, min(middleThirdXEnd, end[0])),
+                           max(middleThirdYStart, min(middleThirdYEnd, end[1])))
+                    self._drawArrow(surface, start, end, self.velocityColor, headSize=5)
             force = np.array(obj.geometry.localForceVector, dtype=float)
             norm = np.sqrt(force[0]**2 + force[1]**2)
             if norm > 0:
@@ -364,8 +378,10 @@ class Renderer:
             startX = obj.geometry.pointXCoords[obj.geometry.numPoints // 4]
             start = self._toScreenCoords(startX, 0, isOrientView=True, orientCenter=(centroidX, centroidZ), orientScale=orientScale)
             end = self._toScreenCoords(startX + force[0], force[1], isOrientView=True, orientCenter=(centroidX, centroidZ), orientScale=orientScale)
-            self._drawArrow(surface, start, end, self.forceColor)
+            self._drawArrow(surface, start, end, self.forceColor, headSize=5)  # Fixed by adding 'end' argument
 
+
+            
     def _renderMinimapView(self, environmentObj, surface):
         overlay = pygame.Surface((self.minimapWidth, self.minimapHeight), pygame.SRCALPHA)
         overlay.fill(self.orientBgColor)

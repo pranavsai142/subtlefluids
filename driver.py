@@ -16,7 +16,7 @@ import numpy as np
 # End New driver
 
 # Construct the object
-foil = Foil("0012", 0.203, 20)
+foil = Foil("0012", 0.203, 300)
 foil.geometry.plotGeometry("naca12_foil_geometry.png")
 foil.geometry.plotNormals("naca12_foil_normals.png")
 
@@ -67,12 +67,12 @@ tunnel = Tunnel()
 renderer = Renderer(windowWidth=1000, windowHeight=800, environment="tunnel")
 
 # Add an object to the Tunnel (assuming 'foil' is defined)
-tunnelObject = tunnel.addObject(foil)
+tunnelObject = tunnel.addObject(circle)
 
 # Evolve the motion of the object
 frame = 0
 while renderer.isRunning():
-    tunnelVelocity, tunnelAcceleration = generateSteadyFlow(frame)
+    tunnelVelocity, tunnelAcceleration = generateUnsteadyFlow(frame)
     tunnel.advanceTime(tunnelVelocity, tunnelAcceleration)
     renderer.render(tunnel)
 #     tunnel.printEnvironment()
@@ -83,7 +83,7 @@ renderer.quit()
 
 # Initialize the Ocean
 ocean = Ocean(100, 100)
-oceanObject = ocean.addObject(circle)  # Assuming 'foil' is defined
+oceanObject = ocean.addObject(foil)  # Assuming 'foil' is defined
 
 # Initialize the Renderer for Ocean
 renderer = Renderer(windowWidth=1000, windowHeight=800, deltaX=ocean.deltaX, deltaZ=ocean.deltaZ, environment="ocean")

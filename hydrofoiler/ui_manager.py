@@ -16,11 +16,10 @@ class UIManager:
         self.orientBgColor = (200, 200, 200, 128)
         self.hiddenUIShown = False
         self.tunnelParams = {
-            "velocity": 10.0,
-            "acceleration": 0.0,
-            "alpha": 0.0,
+            "velocity": 10.0,  # Maximum velocity
+            "alpha": 0.0,     # Angle of attack
             "unsteady": False,
-            "T": 100.0
+            "T": 100.0        # Period of oscillation
         }
         self.oceanParams = {
             "deltaX": 100.0,
@@ -47,19 +46,18 @@ class UIManager:
             y = self.uiPanelRect.y + 10
             spacing = 40
             if self.environment == "tunnel":
-                # Start with the Unsteady checkbox at the top
+                # Unsteady checkbox
                 unsteadyRect = pygame.Rect(self.uiPanelRect.x + 10, y, 25, 25)
                 elements.append({"type": "checkbox", "label": "Unst:", "value": self.tunnelParams["unsteady"], "rect": unsteadyRect, "key": "unsteady"})
                 y += spacing
-                # Define fields for Vel and α
+                # Base fields: velocity and alpha
                 fields = [
                     ("Vel:", str(self.tunnelParams["velocity"]), "velocity"),
                     ("α:", str(self.tunnelParams["alpha"]), "alpha"),
                 ]
-                # Add Acc and T fields only if unsteady is True
+                # Add period (T) field only if unsteady is True
                 if self.tunnelParams["unsteady"]:
                     unsteadyFields = [
-                        ("Acc:", str(self.tunnelParams["acceleration"]), "acceleration"),
                         ("T:", str(self.tunnelParams["T"]), "T"),
                     ]
                     fields.extend(unsteadyFields)
@@ -76,8 +74,6 @@ class UIManager:
                     rect = pygame.Rect(self.uiPanelRect.x + 10, y, 150, 25)
                     elements.append({"type": "textbox", "label": label, "value": value, "rect": rect, "key": key, "active": False})
                     y += spacing
-        # Adjust the debug print to avoid accessing self.environment during initialization
-#         print(f"UI Elements created: {[(e['label'], e['value']) for e in elements]}")
         return elements
 
     def _updateDimensions(self, windowWidth, windowHeight):
@@ -130,7 +126,6 @@ class UIManager:
                         self.tunnelParams["unsteady"] = not self.tunnelParams["unsteady"]
                         element["value"] = self.tunnelParams["unsteady"]
                         self.uiElements = self._createUIElements()
-                # Deactivate other textboxes
                 for other in self.uiElements:
                     if other != element and other["type"] == "textbox":
                         other["active"] = False
@@ -152,22 +147,21 @@ class UIManager:
                     except ValueError:
                         element["value"] = str(self.tunnelParams.get(element["key"], 
                                                                      self.oceanParams.get(element["key"], 0.0)))
-                elif event.unicode.isprintable():  # Allow digits, decimal, minus
+                elif event.unicode.isprintable():
                     element["value"] += event.unicode
 
     def getTunnelFlowParams(self):
         velocity = float(self.tunnelParams["velocity"])
-        acceleration = float(self.tunnelParams["acceleration"])
         alphaDeg = float(self.tunnelParams["alpha"])
         unsteady = self.tunnelParams["unsteady"]
         T = float(self.tunnelParams["T"])
-        return velocity, acceleration, alphaDeg, unsteady, T
+        return velocity, alphaDeg, unsteady, T
 
     def getOceanParams(self):
         return self.oceanParams["deltaX"], self.oceanParams["deltaZ"]
 
     def renderShopUI(self, shop):
-        pass  # Handled in shop.py
+        pass
 
     def renderEnvironmentUI(self, environmentObj, envType):
         self.environment = envType
@@ -178,9 +172,8 @@ class UIManager:
             smallFont = pygame.font.SysFont("ocraextended", 20, bold=False)
             for element in self.uiElements:
                 if element["type"] == "textbox":
-                    # Draw an orange border if the textbox is active
                     if element.get("active", False):
-                        pygame.draw.rect(self.screen, (255, 165, 0), element["rect"], 2, border_radius=3)  # Orange border
+                        pygame.draw.rect(self.screen, (255, 165, 0), element["rect"], 2, border_radius=3)
                     pygame.draw.rect(self.screen, (220, 220, 220), element["rect"], border_radius=3)
                     label = smallFont.render(element["label"], True, self.textColor)
                     self.screen.blit(label, (element["rect"].x - 50, element["rect"].y + 5))

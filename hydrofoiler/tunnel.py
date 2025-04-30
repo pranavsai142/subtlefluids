@@ -22,10 +22,22 @@ class Tunnel:
         self.forceVectors = []
         self.maxHistoryLength = 100
         self.running = True
+        # Initialize flow parameters
+        self.maxVelocity = 0.0
+        self.alphaDeg = 0.0
+        self.unsteady = False
+        self.T = 1.0
+        self.direction = np.array([1.0, 0.0])  # Default direction (will be updated)
 
     def addObject(self, geometryData):
         object = Object(geometryData, 0, 0)
         object.pointLeft()
+        # Set initial velocity and acceleration
+        velocityX = self.maxVelocity * self.direction[0] if not self.unsteady else 0.0  # Start at 0 for unsteady
+        velocityZ = self.maxVelocity * self.direction[1] if not self.unsteady else 0.0
+        object.velocityVector = [-velocityX, -velocityZ]
+        object.accelerationVector = [0.0, 0.0]  # Initial acceleration is 0
+        object.updateForce(object.velocityVector, object.accelerationVector)
         self.objects.append(object)
         return object
 
@@ -45,19 +57,45 @@ class Tunnel:
             for obj in self.objects:
                 obj.rotateRight()
 
-    def advanceTime(self, velocity, acceleration, alphaDeg, unsteady, T):
-        alphaRad = math.radians(alphaDeg)
-        velocityX = velocity * math.cos(alphaRad)
-        velocityZ = velocity * math.sin(alphaRad)
-        if unsteady:
-            t = (self.frameNumber % T) / T
-            accelerationX = acceleration * math.cos(alphaRad) * math.sin(2 * math.pi * t)
-            accelerationZ = acceleration * math.sin(alphaRad) * math.sin(2 * math.pi * t)
+    def advanceTime(self, maxVelocity, alphaDeg, unsteady, T):
+        if not self.running:
+            return
+        self.frameNumber += 1
+
+        # Update flow parameters if they’ve changed
+        if (maxVelocity != self.maxVelocity or alphaDeg != self.alphaDeg or
+            unsteady != self.unsteady or T != self.T):
+            self.maxVelocity = maxVelocity
+            self.alphaDeg = alphaDeg
+            self.unsteady = unsteady
+            self.T = T if T > 0 else 1.0  # Prevent division by zero
+            self.direction = np.array([math.cos(math.radians(self.alphaDeg)), math.sin(math.radians(self.alphaDeg))])
+
+        # Compute time based on frameNumber (assuming 60 FPS)
+        dt = 1/60
+        t = self.frameNumber * dt
+
+        # Compute velocity and acceleration
+        if self.unsteady and self.T > 0:
+            # Unsteady flow: velocity oscillates between -maxVelocity and maxVelocity
+            phase = 2 * math.pi * t / self.T
+            currentVelocity = self.maxVelocity * math.cos(phase)
+            # Acceleration = d/dt(velocity) = -maxVelocity * (2π/T) * sin(2πt/T)
+            currentAcceleration = -self.maxVelocity * (2 * math.pi / self.T) * math.sin(phase)
         else:
-            accelerationX = 0
-            accelerationZ = 0
+            # Steady flow: constant velocity, zero acceleration
+            currentVelocity = self.maxVelocity
+            currentAcceleration = 0.0
+
+        # Compute velocity and acceleration components
+        velocityX = currentVelocity * self.direction[0]
+        velocityZ = currentVelocity * self.direction[1]
+        accelerationX = currentAcceleration * self.direction[0]
+        accelerationZ = currentAcceleration * self.direction[1]
         velocityVector = [-velocityX, -velocityZ]
         accelerationVector = [-accelerationX, -accelerationZ]
+
+        # Update each object
         for obj in self.objects:
             obj.updateForce(velocityVector, accelerationVector)
             if PLOT_FRAMES:
@@ -79,8 +117,7 @@ class Tunnel:
                     self.orientationFrameFilenames.pop(0)
                 if len(self.objectFrameFilenames) > self.maxHistoryLength:
                     self.objectFrameFilenames.pop(0)
-            self.frameNumber += 1
-            
+
     def cleanup(self):
         self.frameFilenames.clear()
         self.orientationFrameFilenames.clear()

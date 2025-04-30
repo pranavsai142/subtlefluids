@@ -340,34 +340,44 @@ class Renderer:
                 start = self._toScreenCoords(x, z, isOrientView=True, orientCenter=(centroidX, centroidZ), orientScale=orientScale)
                 end = self._toScreenCoords(x + vecX, z + vecZ, isOrientView=True, orientCenter=(centroidX, centroidZ), orientScale=orientScale)
                 self._drawArrow(surface, start, end, self.tangentialColor)
-            # Apparent current vectors (red, in middle third with visible stems)
+            # Apparent current vectors (red, unit vector with fixed stem length, in first quarter)
             localVel = np.array(obj.geometry.localVelocityVector, dtype=float)
             norm = np.sqrt(localVel[0]**2 + localVel[1]**2)
             if norm > 0:
-                # Increase target length for visible stems
-                targetScreenLength = min(self.orientWidth, self.orientHeight) * 0.2 * (maxRange / 1.0)
-                targetScreenLength = min(targetScreenLength, self.orientWidth * 0.3)
-                velScale = targetScreenLength / (norm * orientScale)
-                localVel = localVel * velScale
-                # Position in the middle third of the subscreen
-                middleThirdXStart = self.orientPos[0] + self.orientWidth / 3
-                middleThirdXEnd = self.orientPos[0] + 2 * self.orientWidth / 3
+                # Normalize to unit vector
+                unitVel = localVel / norm
+                # Fixed screen length for visibility (in pixels)
+                targetScreenLength = 30
+                # Scale the unit vector directly in screen coordinates
+                screenVel = unitVel * targetScreenLength
+                # Position in the first quarter of the subscreen (leftmost 25%)
+                firstQuarterXStart = self.orientPos[0]
+                firstQuarterXEnd = self.orientPos[0] + self.orientWidth / 4
+                # Keep vertical positioning in the middle third
                 middleThirdYStart = self.orientPos[1] + self.orientHeight / 3
                 middleThirdYEnd = self.orientPos[1] + 2 * self.orientHeight / 3
-                # Center the arrows vertically within the middle third
-                zSpacing = zRange * 0.3
-                offsets = [-zSpacing, 0, zSpacing] if zRange > 0.1 else [-0.03, 0, 0.03]
-                # Position xStart to the left within the middle third
-                xStart = min(obj.geometry.pointXCoords) - (maxRange * 0.2)
-                for offsetZ in offsets:
+                # Start near the left edge of the first quarter
+                xStartScreen = firstQuarterXStart + 10  # 10-pixel padding from the left edge
+                yCenterScreen = (middleThirdYStart + middleThirdYEnd) / 2
+                # Convert xStartScreen to local coordinates for consistency
+                xStart = (xStartScreen - (self.orientPos[0] + self.orientWidth / 2)) / orientScale + centroidX
+                # Use fixed offsets in screen coordinates for vertical spacing
+                screenSpacing = 10
+                offsetsScreen = [-screenSpacing, 0, screenSpacing]
+                for offsetY in offsetsScreen:
+                    yStartScreen = yCenterScreen + offsetY
+                    # Convert yStartScreen to local coordinates
+                    offsetZ = -((yStartScreen - (self.orientPos[1] + self.orientHeight / 2)) / orientScale) + centroidZ
                     start = self._toScreenCoords(xStart, offsetZ, isOrientView=True, orientCenter=(centroidX, centroidZ), orientScale=orientScale)
-                    end = self._toScreenCoords(xStart + localVel[0], offsetZ + localVel[1], isOrientView=True, orientCenter=(centroidX, centroidZ), orientScale=orientScale)
-                    # Clamp to middle third of the subscreen
-                    start = (max(middleThirdXStart, min(middleThirdXEnd, start[0])),
-                             max(middleThirdYStart, min(middleThirdYEnd, start[1])))
-                    end = (max(middleThirdXStart, min(middleThirdXEnd, end[0])),
-                           max(middleThirdYStart, min(middleThirdYEnd, end[1])))
-                    self._drawArrow(surface, start, end, self.velocityColor, headSize=5)
+                    # Compute end directly in screen coordinates
+                    startScreen = list(start)
+                    endScreen = [startScreen[0] + screenVel[0], startScreen[1] - screenVel[1]]
+                    # Clamp to first quarter (x) and middle third (y)
+                    startScreen[0] = max(firstQuarterXStart, min(firstQuarterXEnd, startScreen[0]))
+                    startScreen[1] = max(middleThirdYStart, min(middleThirdYEnd, startScreen[1]))
+                    endScreen[0] = max(firstQuarterXStart, min(firstQuarterXEnd, endScreen[0]))
+                    endScreen[1] = max(middleThirdYStart, min(middleThirdYEnd, endScreen[1]))
+                    self._drawArrow(surface, startScreen, endScreen, self.velocityColor, headSize=5)
             force = np.array(obj.geometry.localForceVector, dtype=float)
             norm = np.sqrt(force[0]**2 + force[1]**2)
             if norm > 0:
@@ -378,9 +388,7 @@ class Renderer:
             startX = obj.geometry.pointXCoords[obj.geometry.numPoints // 4]
             start = self._toScreenCoords(startX, 0, isOrientView=True, orientCenter=(centroidX, centroidZ), orientScale=orientScale)
             end = self._toScreenCoords(startX + force[0], force[1], isOrientView=True, orientCenter=(centroidX, centroidZ), orientScale=orientScale)
-            self._drawArrow(surface, start, end, self.forceColor, headSize=5)  # Fixed by adding 'end' argument
-
-
+            self._drawArrow(surface, start, end, self.forceColor, headSize=5)
             
     def _renderMinimapView(self, environmentObj, surface):
         overlay = pygame.Surface((self.minimapWidth, self.minimapHeight), pygame.SRCALPHA)

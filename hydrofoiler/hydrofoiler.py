@@ -99,9 +99,9 @@ class Hydrofoiler:
             if self.state in ["tunnel", "ocean", "pilot"]:
                 translation_speed = 5.0
                 if keys[pygame.K_d]:
-                    self.renderer.globalOffsetX += translation_speed / self.renderer.scaleX
-                if keys[pygame.K_a]:
                     self.renderer.globalOffsetX -= translation_speed / self.renderer.scaleX
+                if keys[pygame.K_a]:
+                    self.renderer.globalOffsetX += translation_speed / self.renderer.scaleX
                 if keys[pygame.K_w]:
                     self.renderer.globalOffsetZ -= translation_speed / self.renderer.scaleZ
                 if keys[pygame.K_s]:

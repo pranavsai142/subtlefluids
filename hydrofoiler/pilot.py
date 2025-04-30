@@ -6,7 +6,7 @@ import imageio
 import copy
 from geometry import Geometry, Circle, Foil
 
-MAX_FRAMES = 1000
+MAX_FRAMES = 10000
 PLOT_FRAMES = False
 GRAVITY = 9.81
 GRAVITY_VECTOR = np.array([0, -GRAVITY])
@@ -14,7 +14,7 @@ DELTA_T = 0.01
 MAX_VELOCITY = 1000000
 MAX_ACCELERATION = 1000000
 DELTA_ROTATION = 2.0
-THRUST_STRENGTH = 1000
+THRUST_STRENGTH = 200
 
 class Pilot:
     def __init__(self, deltaX, deltaZ):

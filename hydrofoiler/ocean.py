@@ -6,7 +6,7 @@ import imageio
 import copy
 from geometry import Geometry, Circle, Foil
 
-MAX_FRAMES = 1000
+MAX_FRAMES = 10000
 PLOT_FRAMES = False
 GRAVITY = 9.81
 GRAVITY_VECTOR = np.array([0, -GRAVITY])

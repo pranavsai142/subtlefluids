@@ -7,7 +7,7 @@ import copy
 import math
 from geometry import Geometry, Circle, Foil
 
-MAX_FRAMES = 1000
+MAX_FRAMES = 10000
 PLOT_FRAMES = False
 DELTA_ROTATION = 1
 

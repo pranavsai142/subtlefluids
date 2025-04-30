@@ -1,6 +1,7 @@
 from Geometry import Geometry, Circle, Foil
-from Ocean import Ocean, Tunnel
-from Renderer import Renderer
+from tunnel import Tunnel
+from renderer import Renderer
+
 import numpy as np
 
 # HYDROFOILER
@@ -16,7 +17,7 @@ import numpy as np
 # End New driver
 
 # Construct the object
-foil = Foil("0012", 0.203, 20)
+foil = Foil("0012", 0.203, 300)
 foil.geometry.plotGeometry("naca12_foil_geometry.png")
 foil.geometry.plotNormals("naca12_foil_normals.png")
 
@@ -29,7 +30,7 @@ T = 100
 OMEGA = 2 * np.pi / T
 # OMEGA = 0
 WIND_SPEED = 10
-ALPHA = np.radians(8)
+ALPHA = np.radians(0)
 U_0 = WIND_SPEED  # Assuming U_0 should be WIND_SPEED based on context
 
 def generateUnsteadyFlow(frame):
@@ -67,12 +68,12 @@ tunnel = Tunnel()
 renderer = Renderer(windowWidth=1000, windowHeight=800, environment="tunnel")
 
 # Add an object to the Tunnel (assuming 'foil' is defined)
-tunnelObject = tunnel.addObject(foil)
+tunnelObject = tunnel.addObject(circle)
 
 # Evolve the motion of the object
 frame = 0
 while renderer.isRunning():
-    tunnelVelocity, tunnelAcceleration = generateSteadyFlow(frame)
+    tunnelVelocity, tunnelAcceleration = generateUnsteadyFlow(frame)
     tunnel.advanceTime(tunnelVelocity, tunnelAcceleration)
     renderer.render(tunnel)
 #     tunnel.printEnvironment()

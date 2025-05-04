@@ -6,7 +6,7 @@ import imageio
 import math
 import copy
 
-MAX_FRAMES = 100
+MAX_FRAMES = 1000
 PLOT_FRAMES = True
 class Ocean:
     def __init__(self, deltaX, deltaZ):
@@ -135,8 +135,8 @@ class Ocean:
                 object.forceVector[0] * 0.01, object.forceVector[1] * 0.01,
                 head_width=0.01, head_length=0.01, fc='pink', ec='pink', label='Force Vector')
         
-        plt.xlim([0, self.deltaX])
-        plt.ylim([-self.deltaZ, 1])          
+#         plt.xlim([0, self.deltaX])
+#         plt.ylim([-self.deltaZ, 1])          
         plt.title("Global Velocity Frame")
         plt.legend()
         plt.savefig(filename)
@@ -354,7 +354,7 @@ class Tunnel:
         plt.xlabel("Time (frames)")
         plt.title(title + " vs time")
         plt.legend()
-        plt.ylim([0, 4000])     
+#         plt.ylim([0, 4000])     
 #         plt.ylim(LIFT_COEFF_MIN, LIFT_COEFF_MAX)
         plt.savefig(filename)
         plt.close()
@@ -448,9 +448,9 @@ class Object:
         force_perpendicular = self.forceVector - force_along_velocity
 
         # Print results
-        print("Global force vector along velocity (without gravity):", np.dot(self.forceVector, normalVelocity))
-        print("Force vector along velocity (parallel component):", force_along_velocity)
-        print("Force vector perpendicular to velocity:", force_perpendicular)
+#         print("Global force vector along velocity (without gravity):", np.dot(self.forceVector, normalVelocity))
+#         print("Force vector along velocity (parallel component):", force_along_velocity)
+#         print("Force vector perpendicular to velocity:", force_perpendicular)
 #         self.velocityVector[1] += -1
         accelerationMagnitude = np.sqrt(self.accelerationVector[0]**2 + self.accelerationVector[1]**2)
         forceMagnitude = np.sqrt(self.forceVector[0]**2 + self.forceVector[1]**2)

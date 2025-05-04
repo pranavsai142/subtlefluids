@@ -7,8 +7,8 @@ import copy
 import math
 from geometry import Geometry, Circle, Foil
 
-MAX_FRAMES = 10000
-PLOT_FRAMES = False
+MAX_FRAMES = 100
+PLOT_FRAMES = True
 DELTA_ROTATION = 1
 
 class Tunnel:
@@ -20,6 +20,9 @@ class Tunnel:
         self.orientationFrameFilenames = []
         self.objectFrameFilenames = []
         self.forceVectors = []
+        self.velocityVectors = []
+        self.accelerationVectors = []
+        self.addedMasses = []
         self.maxHistoryLength = 100
         self.running = True
         # Initialize flow parameters
@@ -60,7 +63,6 @@ class Tunnel:
     def advanceTime(self, maxVelocity, alphaDeg, unsteady, T):
         if not self.running:
             return
-        self.frameNumber += 1
 
         # Update flow parameters if they’ve changed
         if (maxVelocity != self.maxVelocity or alphaDeg != self.alphaDeg or
@@ -72,16 +74,16 @@ class Tunnel:
             self.direction = np.array([math.cos(math.radians(self.alphaDeg)), math.sin(math.radians(self.alphaDeg))])
 
         # Compute time based on frameNumber (assuming 60 FPS)
-        dt = 1/60
-        t = self.frameNumber * dt
+        dt = 0.01
+        t = self.frameNumber
 
         # Compute velocity and acceleration
         if self.unsteady and self.T > 0:
             # Unsteady flow: velocity oscillates between -maxVelocity and maxVelocity
             phase = 2 * math.pi * t / self.T
-            currentVelocity = self.maxVelocity * math.cos(phase)
+            currentVelocity = self.maxVelocity * math.sin(phase)
             # Acceleration = d/dt(velocity) = -maxVelocity * (2π/T) * sin(2πt/T)
-            currentAcceleration = -self.maxVelocity * (2 * math.pi / self.T) * math.sin(phase)
+            currentAcceleration = self.maxVelocity * (2 * math.pi / self.T) * math.cos(phase)
         else:
             # Steady flow: constant velocity, zero acceleration
             currentVelocity = self.maxVelocity
@@ -97,26 +99,51 @@ class Tunnel:
 
         # Update each object
         for obj in self.objects:
-            obj.updateForce(velocityVector, accelerationVector)
-            if PLOT_FRAMES:
-                self.forceVectors.append(obj.forceVector)
-                if len(self.forceVectors) > self.maxHistoryLength:
-                    self.forceVectors.pop(0)
-                frameFilename = os.path.join("graphs", f"tunnel_global_forces_{self.frameNumber}.png")
-                orientationFrameFilename = os.path.join("graphs", f"tunnel_local_orientation_{self.frameNumber}.png")
-                self.plotForces(frameFilename, orientationFrameFilename, obj)
-                self.frameFilenames.append(frameFilename)
-                self.orientationFrameFilenames.append(orientationFrameFilename)
-                objectFrameFilename = os.path.join("graphs", f"tunnel_local_forces_{self.frameNumber}.png")
-                obj.geometry.plotForces(objectFrameFilename, obj.geometry.localVelocityVector,
-                                        obj.geometry.tangentialTotalVelocity, obj.geometry.localForceVector)
-                self.objectFrameFilenames.append(objectFrameFilename)
-                if len(self.frameFilenames) > self.maxHistoryLength:
-                    self.frameFilenames.pop(0)
-                if len(self.orientationFrameFilenames) > self.maxHistoryLength:
-                    self.orientationFrameFilenames.pop(0)
-                if len(self.objectFrameFilenames) > self.maxHistoryLength:
-                    self.objectFrameFilenames.pop(0)
+            if(self.frameNumber >= MAX_FRAMES):
+                print("TUNNEL MAX FRAME REACHED")
+                if(PLOT_FRAMES):
+#                     self.createMovie("global_forces.gif", self.frameFilenames)
+#                     self.createMovie("local_forces.gif", self.objectFrameFilenames)
+#                     self.createMovie("local_orientations.gif", self.orientationFrameFilenames)
+                    self.plotVectorTimeseries(os.path.join("graphs", "global_forces_timeseries.png"), self.forceVectors, "force")
+                    self.plotVectorTimeseries(os.path.join("graphs", "global_velocity_timeseries.png"), self.velocityVectors, "velocity")
+                    self.plotVectorTimeseries(os.path.join("graphs", "global_acceleration_timeseries.png"), self.accelerationVectors, "acceleration")
+                    self.plotTimeseries(os.path.join("graphs", "global_added_mass_timeseries.png"), self.addedMasses, "added mass")
+                self.running = False
+            else:
+                obj.updateForce(velocityVector, accelerationVector)
+                if PLOT_FRAMES:
+                    self.forceVectors.append(obj.forceVector)
+                    self.velocityVectors.append(copy.copy(obj.velocityVector))
+                    self.accelerationVectors.append(copy.copy(obj.accelerationVector))
+                    self.addedMasses.append(copy.copy(obj.addedMass))
+                    # Cap vector lists
+                    if len(self.forceVectors) > self.maxHistoryLength:
+                        self.forceVectors.pop(0)
+                    if len(self.velocityVectors) > self.maxHistoryLength:
+                        self.velocityVectors.pop(0)
+                    if len(self.accelerationVectors) > self.maxHistoryLength:
+                        self.accelerationVectors.pop(0)
+                    if len(self.addedMasses) > self.maxHistoryLength:
+                        self.addedMasses.pop(0)
+                    if len(self.forceVectors) > self.maxHistoryLength:
+                        self.forceVectors.pop(0)
+#                     frameFilename = os.path.join("graphs", f"tunnel_global_forces_{self.frameNumber}.png")
+#                     orientationFrameFilename = os.path.join("graphs", f"tunnel_local_orientation_{self.frameNumber}.png")
+#                     self.plotForces(frameFilename, orientationFrameFilename, obj)
+#                     self.frameFilenames.append(frameFilename)
+#                     self.orientationFrameFilenames.append(orientationFrameFilename)
+#                     objectFrameFilename = os.path.join("graphs", f"tunnel_local_forces_{self.frameNumber}.png")
+#                     obj.geometry.plotForces(objectFrameFilename, obj.geometry.localVelocityVector,
+#                                             obj.geometry.tangentialTotalVelocity, obj.geometry.localForceVector)
+#                     self.objectFrameFilenames.append(objectFrameFilename)
+#                     if len(self.frameFilenames) > self.maxHistoryLength:
+#                         self.frameFilenames.pop(0)
+#                     if len(self.orientationFrameFilenames) > self.maxHistoryLength:
+#                         self.orientationFrameFilenames.pop(0)
+#                     if len(self.objectFrameFilenames) > self.maxHistoryLength:
+#                         self.objectFrameFilenames.pop(0)
+            self.frameNumber += 1
 
     def cleanup(self):
         self.frameFilenames.clear()
@@ -209,6 +236,7 @@ class Tunnel:
         plt.xlabel("Time (s)")
         plt.title(f"{title} vs time")
         plt.legend()
+        plt.ylim([0, 40])
         plt.savefig(filename)
         plt.close()
 
@@ -243,6 +271,8 @@ class Object:
         self.velocityVector = velocityVector
         self.accelerationVector = accelerationVector
         self.forceVector = self.geometry.computeForceFromFlow(self.orientationVector, velocityVector, accelerationVector)
+#         print("self.forceVector", self.forceVector)
         accelerationMagnitude = np.sqrt(self.accelerationVector[0]**2 + self.accelerationVector[1]**2)
         forceMagnitude = np.sqrt(self.forceVector[0]**2 + self.forceVector[1]**2)
         self.addedMass = forceMagnitude / accelerationMagnitude if accelerationMagnitude > 0 else 0
+#         print("self.addedMass", self.addedMass)

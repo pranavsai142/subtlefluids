@@ -6,8 +6,8 @@ import imageio
 import copy
 from geometry import Geometry, Circle, Foil
 
-MAX_FRAMES = 10000
-PLOT_FRAMES = False
+MAX_FRAMES = 1000
+PLOT_FRAMES = True
 GRAVITY = 9.81
 GRAVITY_VECTOR = np.array([0, -GRAVITY])
 DELTA_T = 0.01
@@ -32,7 +32,7 @@ class Ocean:
         self.addedMasses = []
         self.pathHistory = []  # For minimap
         self.running = True
-        self.maxHistoryLength = 100  # Cap history lengths
+        self.maxHistoryLength = 1000  # Cap history lengths
 
     def addObject(self, geometryData):
         object = Object(geometryData, self.deltaX/2, 0)
@@ -69,9 +69,9 @@ class Ocean:
             if self.isOutsideBounds(object) or self.frameNumber >= MAX_FRAMES:
                 print("CRASH!", object.positionVector, self.isOutsideBounds(object))
                 if PLOT_FRAMES:
-                    self.createMovie("ocean_global_forces.gif", self.frameFilenames)
-                    self.createMovie("ocean_local_forces.gif", self.objectFrameFilenames)
-                    self.createMovie("ocean_local_orientations.gif", self.orientationFrameFilenames)
+#                     self.createMovie("ocean_global_forces.gif", self.frameFilenames)
+#                     self.createMovie("ocean_local_forces.gif", self.objectFrameFilenames)
+#                     self.createMovie("ocean_local_orientations.gif", self.orientationFrameFilenames)
                     self.plotVectorTimeseries(os.path.join("graphs", "ocean_forces_timeseries.png"), self.forceVectors, "force")
                     self.plotVectorTimeseries(os.path.join("graphs", "ocean_position_timeseries.png"), self.positionVectors, "position")
                     self.plotVectorTimeseries(os.path.join("graphs", "ocean_velocity_timeseries.png"), self.velocityVectors, "velocity")
@@ -80,22 +80,22 @@ class Ocean:
                 self.running = False
             else:
                 if PLOT_FRAMES:
-                    frameFilename = os.path.join("graphs", f"ocean_global_forces_{self.frameNumber}.png")
-                    orientationFrameFilename = os.path.join("graphs", f"ocean_local_orientation_{self.frameNumber}.png")
-                    self.plotForces(frameFilename, orientationFrameFilename, object)
-                    self.frameFilenames.append(frameFilename)
-                    self.orientationFrameFilenames.append(orientationFrameFilename)
-                    objectFrameFilename = os.path.join("graphs", f"ocean_local_forces_{self.frameNumber}.png")
-                    object.geometry.plotForces(objectFrameFilename, object.geometry.localVelocityVector,
-                                              object.geometry.tangentialTotalVelocity, object.geometry.localForceVector)
-                    self.objectFrameFilenames.append(objectFrameFilename)
-                    # Cap frame filenames
-                    if len(self.frameFilenames) > self.maxHistoryLength:
-                        self.frameFilenames.pop(0)
-                    if len(self.orientationFrameFilenames) > self.maxHistoryLength:
-                        self.orientationFrameFilenames.pop(0)
-                    if len(self.objectFrameFilenames) > self.maxHistoryLength:
-                        self.objectFrameFilenames.pop(0)
+#                     frameFilename = os.path.join("graphs", f"ocean_global_forces_{self.frameNumber}.png")
+#                     orientationFrameFilename = os.path.join("graphs", f"ocean_local_orientation_{self.frameNumber}.png")
+#                     self.plotForces(frameFilename, orientationFrameFilename, object)
+#                     self.frameFilenames.append(frameFilename)
+#                     self.orientationFrameFilenames.append(orientationFrameFilename)
+#                     objectFrameFilename = os.path.join("graphs", f"ocean_local_forces_{self.frameNumber}.png")
+#                     object.geometry.plotForces(objectFrameFilename, object.geometry.localVelocityVector,
+#                                               object.geometry.tangentialTotalVelocity, object.geometry.localForceVector)
+#                     self.objectFrameFilenames.append(objectFrameFilename)
+#                     # Cap frame filenames
+#                     if len(self.frameFilenames) > self.maxHistoryLength:
+#                         self.frameFilenames.pop(0)
+#                     if len(self.orientationFrameFilenames) > self.maxHistoryLength:
+#                         self.orientationFrameFilenames.pop(0)
+#                     if len(self.objectFrameFilenames) > self.maxHistoryLength:
+#                         self.objectFrameFilenames.pop(0)
                     self.forceVectors.append(object.forceVector)
                     self.positionVectors.append(copy.copy(object.positionVector))
                     self.velocityVectors.append(copy.copy(object.velocityVector))
@@ -167,8 +167,8 @@ class Ocean:
         plt.arrow(centroidX, centroidZ,
                   object.forceVector[0] * 0.01, object.forceVector[1] * 0.01,
                   head_width=0.01, head_length=0.01, fc='pink', ec='pink', label='Force Vector')
-        plt.xlim([0, self.deltaX])
-        plt.ylim([-self.deltaZ, 1])
+#         plt.xlim([0, self.deltaX])
+#         plt.ylim([-self.deltaZ, 1])
         plt.title("Global Velocity Frame")
         plt.legend()
         plt.savefig(filename)
@@ -251,7 +251,9 @@ class Object:
 
     def updatePosition(self):
         self.updateForce(self.velocityVector, self.accelerationVector)
-        totalForceVector = self.forceVector + ((self.mass + self.addedMass) * GRAVITY_VECTOR)
+#         print("self.forceVector", self.forceVector)
+#         modifiedForceVector = [self.forceVector[0], self.forceVector[1] * -1]
+#         totalForceVector = self.forceVector + ((self.mass + self.addedMass) * GRAVITY_VECTOR)
         totalForceVector = self.forceVector + ((self.mass) * GRAVITY_VECTOR)
         self.accelerationVector = totalForceVector / (self.mass + self.addedMass)
         self.capAcceleration()

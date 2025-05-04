@@ -340,15 +340,15 @@ class Geometry:
         gamma = solution[self.numPoints]
         
 
-#         phiT = self.solveForPotentialT(rhsT)
-        rhsT[lowerPointIndex] = 0
-        rhsTKJ = -2 * localAccelerationVector[1] * self.normalX[lowerPointIndex]
-        rhsT = np.concatenate([rhsT, [rhsTKJ]])
-# #         print("self.modifiedKqgMatrix", self.modifiedKqgMatrix)
-#         
-        solution = np.linalg.solve(self.modifiedKqgMatrix, rhsT)
-        phiT = solution[:self.numPoints]
-        gammaT = solution[self.numPoints]
+        phiT = self.solveForPotentialT(rhsT)
+#         rhsT[lowerPointIndex] = 0
+#         rhsTKJ = -2 * localAccelerationVector[1] * self.normalX[lowerPointIndex]
+#         rhsT = np.concatenate([rhsT, [rhsTKJ]])
+# # #         print("self.modifiedKqgMatrix", self.modifiedKqgMatrix)
+# #         
+#         solution = np.linalg.solve(self.modifiedKqgMatrix, rhsT)
+#         phiT = solution[:self.numPoints]
+#         gammaT = solution[self.numPoints]
 #         print("phiT", phiT)
 #         print("GAMMAT", gammaT)
 #         print("gamma", gamma)
@@ -416,7 +416,7 @@ class Geometry:
 #     TODO: Combime with calculateVortexVelocityNormal function
     def addVortexContribution(self, phi, phiT, tangentialTotalVelocity, gamma):
         phi += gamma * self.vortexPhi
-        phiT += gamma**2 * self.vortexPhiT
+#         phiT += gamma**2 * self.vortexPhiT
         tangentialTotalVelocity[:self.numPoints//2+1] += (gamma * self.vortexVelocityX[:self.numPoints//2+1] * -self.normalZ[:self.numPoints//2+1]) + (gamma * self.vortexVelocityZ[:self.numPoints//2+1] * self.normalX[:self.numPoints//2+1])
         tangentialTotalVelocity[self.numPoints//2+1:] += (gamma * self.vortexVelocityX[self.numPoints//2+1:] * -self.normalZ[self.numPoints//2+1:]) + (gamma * self.vortexVelocityZ[self.numPoints//2+1:] * self.normalX[self.numPoints//2+1:])
         return phi, phiT, tangentialTotalVelocity
@@ -487,6 +487,7 @@ class Geometry:
     def computeForceFromFlow(self, orientationVector, velocityVector, accelerationVector):
         localVelocityVector, rhs, localAccelerationVector, rhsT = self.computeRhs(orientationVector, velocityVector, accelerationVector)
 #         print("localVelocityVector", localVelocityVector)
+        print("max rhs", np.max(rhsT))
 #         print("acceleration vector", accelerationVector)
 #         print("local acceleration vector", localAccelerationVector)
 #         print("orientation vector", orientationVector)

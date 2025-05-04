@@ -29,7 +29,7 @@ T = 100
 OMEGA = 2 * np.pi / T
 # OMEGA = 0
 WIND_SPEED = 10
-ALPHA = np.radians(8)
+ALPHA = np.radians(0)
 U_0 = WIND_SPEED  # Assuming U_0 should be WIND_SPEED based on context
 
 def generateUnsteadyFlow(frame):
@@ -67,7 +67,7 @@ tunnel = Tunnel()
 renderer = Renderer(windowWidth=1000, windowHeight=800, environment="tunnel")
 
 # Add an object to the Tunnel (assuming 'foil' is defined)
-tunnelObject = tunnel.addObject(circle)
+tunnelObject = tunnel.addObject(foil)
 
 # Evolve the motion of the object
 frame = 0

@@ -155,6 +155,10 @@ class UIManager:
         alphaDeg = float(self.tunnelParams["alpha"])
         unsteady = self.tunnelParams["unsteady"]
         T = float(self.tunnelParams["T"])
+        velocity = 10.0
+        alphaDeg = 0.0
+        unsteady = True
+        T = 100
         return velocity, alphaDeg, unsteady, T
 
     def getOceanParams(self):
